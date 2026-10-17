@@ -39,7 +39,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is inactive. Please contact administrator.');
     }
 
-    const assignedProperties = user.propertyUsers.map((pu) => pu.propertyId);
+    const assignedProperties = user.propertyUsers.map((pu: any) => pu.propertyId);
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -100,7 +100,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       status: user.status,
-      assignedProperties: user.propertyUsers.map((pu) => ({
+      assignedProperties: user.propertyUsers.map((pu: any) => ({
         propertyId: pu.propertyId,
         role: pu.role,
         propertyName: pu.property.name,

@@ -80,7 +80,7 @@ export class PropertiesService {
       },
     });
 
-    return properties.map((p) => {
+    return properties.map((p: any) => {
       const assignedUser = p.propertyUsers[0]?.user;
       return {
         id: `PROP-${String(p.id).padStart(2, '0')}`,
@@ -238,7 +238,7 @@ export class PropertiesService {
       totalAdmins,
       activeAdmins,
       inactiveAdmins: totalAdmins - activeAdmins,
-      recentProperties: recentProperties.map((p) => ({
+      recentProperties: recentProperties.map((p: any) => ({
         id: `PROP-${String(p.id).padStart(2, '0')}`,
         rawId: p.id,
         name: p.name,
@@ -248,7 +248,7 @@ export class PropertiesService {
         admin: p.propertyUsers[0]?.user.name || 'Unassigned',
         status: p.status.toLowerCase(),
       })),
-      recentAdmins: recentAdmins.map((a) => ({
+      recentAdmins: recentAdmins.map((a: any) => ({
         id: `ADM-${String(a.id).padStart(2, '0')}`,
         rawId: a.id,
         name: a.name,

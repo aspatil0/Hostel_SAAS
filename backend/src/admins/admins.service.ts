@@ -80,11 +80,8 @@ export class AdminsService {
         address: assignedProp?.address || '',
         createdAt: user.createdAt,
       };
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
         throw new ConflictException('A user with this email already exists');
       }
       throw error;
@@ -92,7 +89,7 @@ export class AdminsService {
   }
 
   async findAll(search?: string, status?: UserStatus) {
-    const where: Prisma.UserWhereInput = {
+    const where: any = {
       role: Role.PROPERTY_ADMIN,
     };
 
@@ -128,7 +125,7 @@ export class AdminsService {
       },
     });
 
-    return users.map((u) => {
+    return users.map((u: any) => {
       const assignedProp = u.propertyUsers[0]?.property;
       return {
         id: u.id,
@@ -178,7 +175,7 @@ export class AdminsService {
       address: assignedProp?.address || '',
       joinedDate: user.createdAt.toISOString().split('T')[0],
       createdAt: user.createdAt,
-      assignedProperties: user.propertyUsers.map((pu) => pu.property),
+      assignedProperties: user.propertyUsers.map((pu: any) => pu.property),
     };
   }
 
@@ -188,7 +185,7 @@ export class AdminsService {
       throw new NotFoundException(`Administrator with ID ${id} not found`);
     }
 
-    const updateData: Prisma.UserUpdateInput = {};
+    const updateData: any = {};
 
     if (dto.name) updateData.name = dto.name.trim();
     if (dto.email) updateData.email = dto.email.trim();
