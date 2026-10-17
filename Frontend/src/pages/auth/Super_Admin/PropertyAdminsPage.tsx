@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import {
   Users,
   Plus,
@@ -17,6 +17,7 @@ import {
   Sparkles,
   ShieldCheck,
   UserCheck,
+  Loader2,
 } from 'lucide-react';
 import {
   Button,
@@ -29,6 +30,7 @@ import {
   type Column,
 } from '@/components/ui';
 import { initialPropertyAdmins, initialProperties } from '@/data/mockData';
+import { adminService } from '@/services/adminService';
 import type { PropertyAdmin } from '@/types/property';
 
 export function PropertyAdminsPage() {
@@ -36,20 +38,14 @@ export function PropertyAdminsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<PropertyAdmin | null>(null);
   const [viewingAdmin, setViewingAdmin] = useState<PropertyAdmin | null>(null);
 
-  // Form State - precisely matches user requested fields:
-  // - property name
-  // - property owner name
-  // - mobile number
-  // - email address
-  // - property ad (address)
-  // - property image (single image for students/public)
-  // - capacity (rooms and beds)
+  // Form State
   const [formData, setFormData] = useState({
     propertyName: '',
     ownerName: '',
@@ -63,6 +59,27 @@ export function PropertyAdminsPage() {
     totalBeds: 90,
     status: 'active' as 'active' | 'inactive',
   });
+
+  // Load admins from backend with fallback
+  useEffect(() => {
+    let isMounted = true;
+    async function loadAdmins() {
+      setIsLoading(true);
+      try {
+        const data = await adminService.getAdmins(searchQuery, statusFilter);
+        if (isMounted) setAdmins(data);
+      } catch (err) {
+        console.warn('Could not fetch admins from backend:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadAdmins();
+    return () => {
+      isMounted = false;
+    };
+  }, [searchQuery, statusFilter]);
 
   // Sample student-facing image presets for instant preview
   const imagePresets = [
@@ -134,21 +151,35 @@ export function PropertyAdminsPage() {
     setIsModalOpen(true);
   };
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string) => {
+    const target = admins.find((a) => a.id === id);
+    if (!target) return;
+    const nextStatus = target.status === 'active' ? 'inactive' : 'active';
+
+    try {
+      await adminService.updateAdminStatus(id, nextStatus);
+    } catch {
+      // offline fallback
+    }
+
     setAdmins((prev) =>
       prev.map((a) =>
-        a.id === id
-          ? { ...a, status: a.status === 'active' ? 'inactive' : 'active' }
-          : a
+        a.id === id ? { ...a, status: nextStatus } : a
       )
     );
   };
 
-  const handleSubmitForm = (e: FormEvent) => {
+  const handleSubmitForm = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.ownerName.trim() || !formData.propertyName.trim()) return;
 
     if (editingAdmin) {
+      try {
+        await adminService.updateAdmin(editingAdmin.id, formData);
+      } catch {
+        // offline fallback
+      }
+
       setAdmins((prev) =>
         prev.map((a) =>
           a.id === editingAdmin.id
@@ -162,13 +193,18 @@ export function PropertyAdminsPage() {
         )
       );
     } else {
-      const newAdmin: PropertyAdmin = {
-        id: `ADM-${String(admins.length + 1).padStart(2, '0')}`,
-        ...formData,
-        totalRooms: Number(formData.totalRooms),
-        totalBeds: Number(formData.totalBeds),
-        joinedDate: new Date().toISOString().split('T')[0],
-      };
+      let newAdmin: PropertyAdmin;
+      try {
+        newAdmin = await adminService.createAdmin(formData);
+      } catch {
+        newAdmin = {
+          id: `ADM-${String(admins.length + 1).padStart(2, '0')}`,
+          ...formData,
+          totalRooms: Number(formData.totalRooms),
+          totalBeds: Number(formData.totalBeds),
+          joinedDate: new Date().toISOString().split('T')[0],
+        };
+      }
       setAdmins([newAdmin, ...admins]);
     }
 
@@ -300,9 +336,14 @@ export function PropertyAdminsPage() {
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#172B45] dark:text-white">
-            Property Administrators
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-[#172B45] dark:text-white">
+              Property Administrators
+            </h1>
+            {isLoading && (
+              <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
             Register hostel owners, manage contact profiles, and configure student-facing hostel listings.
           </p>

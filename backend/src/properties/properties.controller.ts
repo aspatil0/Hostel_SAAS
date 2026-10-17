@@ -36,6 +36,12 @@ export class PropertiesController {
     return this.propertiesService.create(dto);
   }
 
+  @Get('stats/summary')
+  @Roles(Role.SUPER_ADMIN)
+  getStatsSummary() {
+    return this.propertiesService.getStatsSummary();
+  }
+
   @Get()
   @Roles(Role.SUPER_ADMIN, Role.PROPERTY_ADMIN)
   findAll(

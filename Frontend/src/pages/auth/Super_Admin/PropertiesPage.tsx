@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import {
   Building2,
   Plus,
@@ -15,6 +15,7 @@ import {
   List,
   Eye,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import {
   Button,
@@ -27,6 +28,7 @@ import {
   type Column,
 } from '@/components/ui';
 import { initialProperties } from '@/data/mockData';
+import { propertyService } from '@/services/propertyService';
 import type { Property } from '@/types/property';
 
 export function PropertiesPage() {
@@ -34,6 +36,7 @@ export function PropertiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,7 +58,28 @@ export function PropertiesPage() {
     status: 'active' as 'active' | 'inactive',
   });
 
-  // Filtered Properties
+  // Load properties from backend with fallback
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProperties() {
+      setIsLoading(true);
+      try {
+        const data = await propertyService.getProperties(searchQuery, statusFilter);
+        if (isMounted) setProperties(data);
+      } catch (err) {
+        console.warn('Could not fetch properties from backend:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadProperties();
+    return () => {
+      isMounted = false;
+    };
+  }, [searchQuery, statusFilter]);
+
+  // Filtered Properties for local instant filtering
   const filteredProperties = properties.filter((prop) => {
     const matchesSearch =
       prop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -105,21 +129,33 @@ export function PropertiesPage() {
     setIsModalOpen(true);
   };
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string) => {
+    const target = properties.find((p) => p.id === id);
+    if (!target) return;
+    const nextStatus = target.status === 'active' ? 'inactive' : 'active';
+
+    try {
+      await propertyService.updatePropertyStatus(id, nextStatus);
+    } catch {
+      // offline fallback
+    }
+
     setProperties((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, status: p.status === 'active' ? 'inactive' : 'active' }
-          : p
-      )
+      prev.map((p) => (p.id === id ? { ...p, status: nextStatus } : p))
     );
   };
 
-  const handleSubmitForm = (e: FormEvent) => {
+  const handleSubmitForm = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
     if (editingProperty) {
+      try {
+        await propertyService.updateProperty(editingProperty.id, formData);
+      } catch {
+        // offline fallback
+      }
+
       setProperties((prev) =>
         prev.map((p) =>
           p.id === editingProperty.id
@@ -133,14 +169,19 @@ export function PropertiesPage() {
         )
       );
     } else {
-      const newProperty: Property = {
-        id: `PROP-${String(properties.length + 1).padStart(2, '0')}`,
-        ...formData,
-        totalRooms: Number(formData.totalRooms),
-        totalBeds: Number(formData.totalBeds),
-        occupiedBeds: 0,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
+      let newProperty: Property;
+      try {
+        newProperty = await propertyService.createProperty(formData);
+      } catch {
+        newProperty = {
+          id: `PROP-${String(properties.length + 1).padStart(2, '0')}`,
+          ...formData,
+          totalRooms: Number(formData.totalRooms),
+          totalBeds: Number(formData.totalBeds),
+          occupiedBeds: 0,
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+      }
       setProperties([newProperty, ...properties]);
     }
 
@@ -280,9 +321,14 @@ export function PropertiesPage() {
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#172B45] dark:text-white">
-            Hostel Properties
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-[#172B45] dark:text-white">
+              Hostel Properties
+            </h1>
+            {isLoading && (
+              <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
             Manage student accommodations, monitor capacity limits, and assign
             property administrators.

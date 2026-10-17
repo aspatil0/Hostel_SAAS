@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Users,
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -31,8 +31,15 @@ export function AppSidebar({
   onCloseMobile,
 }: AppSidebarProps) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const displayName = user?.name || 'Super Admin';
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const displayName = user?.name || 'Aditya Raj Patil';
+  const displayEmail = user?.email || 'dt.adittarajpatil@gmail.com';
 
   const initials = displayName
     .split(' ')
@@ -172,7 +179,7 @@ export function AppSidebar({
                 </p>
 
                 <p className="truncate text-xs text-slate-400">
-                  {user?.email || 'Administrator'}
+                  {displayEmail}
                 </p>
               </div>
             )}
@@ -180,7 +187,7 @@ export function AppSidebar({
 
           <button
             type="button"
-            onClick={logout}
+            onClick={handleLogout}
             title="Sign out"
             aria-label="Sign out"
             className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-400 cursor-pointer"

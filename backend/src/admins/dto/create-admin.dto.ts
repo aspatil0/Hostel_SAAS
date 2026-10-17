@@ -28,4 +28,8 @@ export class CreateAdminDto {
   @IsInt({ message: 'Property ID must be an integer' })
   @IsNotEmpty({ message: 'Property ID is required' })
   propertyId: number;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
 }
