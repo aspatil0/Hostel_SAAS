@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  PROPERTY_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PropertyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PropertyType {
+  PG
+  HOSTEL
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  email        String         @unique @db.VarChar(255)
+  passwordHash String         @map("password_hash") @db.VarChar(255)
+  role         Role           @default(PROPERTY_ADMIN)
+  status       UserStatus     @default(ACTIVE)
+  tokenVersion Int            @default(0) @map("token_version")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  propertyUsers PropertyUser[]
+
+  @@map("users")
+}
+
+model Property {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  propertyType PropertyType   @map("property_type")
+  address      String         @db.Text
+  status       PropertyStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  propertyUsers PropertyUser[]
+
+  @@map("properties")
+}
+
+model PropertyUser {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  propertyId Int      @map("property_id")
+  role       Role     @default(PROPERTY_ADMIN)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId], name: "unique_user_property_assignment")
+  @@index([userId])
+  @@index([propertyId])
+  @@map("property_users")
+}
