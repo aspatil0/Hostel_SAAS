@@ -1,0 +1,925 @@
+import { useState, type FormEvent } from 'react';
+import {
+  Users,
+  Plus,
+  Search,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  BedDouble,
+  Edit2,
+  CheckCircle2,
+  XCircle,
+  LayoutGrid,
+  List,
+  Eye,
+  Sparkles,
+  ShieldCheck,
+  UserCheck,
+} from 'lucide-react';
+import {
+  Button,
+  StatusBadge,
+  Modal,
+  FormField,
+  Input,
+  Select,
+  DataTable,
+  type Column,
+} from '@/components/ui';
+import { initialPropertyAdmins, initialProperties } from '@/data/mockData';
+import type { PropertyAdmin } from '@/types/property';
+
+export function PropertyAdminsPage() {
+  const [admins, setAdmins] = useState<PropertyAdmin[]>(initialPropertyAdmins);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+
+  // Modal States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<PropertyAdmin | null>(null);
+  const [viewingAdmin, setViewingAdmin] = useState<PropertyAdmin | null>(null);
+
+  // Form State - precisely matches user requested fields:
+  // - property name
+  // - property owner name
+  // - mobile number
+  // - email address
+  // - property ad (address)
+  // - property image (single image for students/public)
+  // - capacity (rooms and beds)
+  const [formData, setFormData] = useState({
+    propertyName: '',
+    ownerName: '',
+    phone: '',
+    email: '',
+    address: '',
+    city: 'Mumbai',
+    image:
+      'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
+    totalRooms: 35,
+    totalBeds: 90,
+    status: 'active' as 'active' | 'inactive',
+  });
+
+  // Sample student-facing image presets for instant preview
+  const imagePresets = [
+    {
+      label: 'Campus Dorm',
+      url: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      label: 'Modern Co-living',
+      url: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      label: 'Heritage Residency',
+      url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      label: 'Executive Suite',
+      url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
+    },
+  ];
+
+  // Filtering
+  const filteredAdmins = admins.filter((admin) => {
+    const matchesSearch =
+      admin.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      admin.propertyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      admin.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      admin.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      admin.address.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all' ? true : admin.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  // Handlers
+  const handleOpenAddModal = () => {
+    setEditingAdmin(null);
+    setFormData({
+      propertyName: '',
+      ownerName: '',
+      phone: '',
+      email: '',
+      address: '',
+      city: 'Mumbai',
+      image: imagePresets[0].url,
+      totalRooms: 30,
+      totalBeds: 80,
+      status: 'active',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (admin: PropertyAdmin) => {
+    setEditingAdmin(admin);
+    setFormData({
+      propertyName: admin.propertyName,
+      ownerName: admin.ownerName,
+      phone: admin.phone,
+      email: admin.email,
+      address: admin.address,
+      city: admin.city,
+      image: admin.image,
+      totalRooms: admin.totalRooms || 30,
+      totalBeds: admin.totalBeds || 80,
+      status: admin.status,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleToggleStatus = (id: string) => {
+    setAdmins((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? { ...a, status: a.status === 'active' ? 'inactive' : 'active' }
+          : a
+      )
+    );
+  };
+
+  const handleSubmitForm = (e: FormEvent) => {
+    e.preventDefault();
+    if (!formData.ownerName.trim() || !formData.propertyName.trim()) return;
+
+    if (editingAdmin) {
+      setAdmins((prev) =>
+        prev.map((a) =>
+          a.id === editingAdmin.id
+            ? {
+                ...a,
+                ...formData,
+                totalRooms: Number(formData.totalRooms),
+                totalBeds: Number(formData.totalBeds),
+              }
+            : a
+        )
+      );
+    } else {
+      const newAdmin: PropertyAdmin = {
+        id: `ADM-${String(admins.length + 1).padStart(2, '0')}`,
+        ...formData,
+        totalRooms: Number(formData.totalRooms),
+        totalBeds: Number(formData.totalBeds),
+        joinedDate: new Date().toISOString().split('T')[0],
+      };
+      setAdmins([newAdmin, ...admins]);
+    }
+
+    setIsModalOpen(false);
+  };
+
+  // Pre-fill property details if user chooses an existing property from dropdown
+  const handleSelectExistingProperty = (propName: string) => {
+    const existing = initialProperties.find((p) => p.name === propName);
+    if (existing) {
+      setFormData((prev) => ({
+        ...prev,
+        propertyName: existing.name,
+        address: existing.address,
+        city: existing.city,
+        image: existing.image,
+        totalRooms: existing.totalRooms,
+        totalBeds: existing.totalBeds,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        propertyName: propName,
+      }));
+    }
+  };
+
+  // Table Columns
+  const tableColumns: Column<PropertyAdmin>[] = [
+    {
+      id: 'admin',
+      header: 'Property Administrator',
+      accessor: (a) => (
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white font-bold text-sm shadow-xs">
+            {a.ownerName.charAt(0)}
+          </div>
+          <div>
+            <p className="font-bold text-xs text-[#172B45] dark:text-white">{a.ownerName}</p>
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 flex items-center gap-1 mt-0.5">
+              <Mail className="h-3 w-3" /> {a.email}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'property',
+      header: 'Assigned Property',
+      accessor: (a) => (
+        <div className="flex items-center gap-3">
+          <img
+            src={a.image}
+            alt={a.propertyName}
+            className="h-10 w-12 rounded-lg object-cover border border-[#E2E8F0] dark:border-[#1F2E45] shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="font-semibold text-xs text-[#172B45] dark:text-white truncate">
+              {a.propertyName}
+            </p>
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 flex items-center gap-1 truncate">
+              <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+              {a.address}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'phone',
+      header: 'Mobile Number',
+      accessor: (a) => (
+        <span className="text-xs font-medium text-[#172B45] dark:text-slate-200 flex items-center gap-1.5">
+          <Phone className="h-3.5 w-3.5 text-slate-400" /> {a.phone}
+        </span>
+      ),
+    },
+    {
+      id: 'capacity',
+      header: 'Capacity',
+      accessor: (a) => (
+        <span className="text-xs text-[#172B45] dark:text-slate-200">
+          <strong>{a.totalRooms}</strong> Rooms • <strong>{a.totalBeds}</strong> Beds
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessor: (a) => <StatusBadge status={a.status} />,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      align: 'right',
+      accessor: (a) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewingAdmin(a)}
+            title="View Admin Details"
+          >
+            <Eye className="h-4 w-4 text-slate-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleOpenEditModal(a)}
+            title="Edit Admin"
+          >
+            <Edit2 className="h-4 w-4 text-slate-500" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleToggleStatus(a.id)}
+            className="text-xs"
+          >
+            {a.status === 'active' ? 'Deactivate' : 'Activate'}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#172B45] dark:text-white">
+            Property Administrators
+          </h1>
+          <p className="text-xs sm:text-sm text-[#64748B] dark:text-slate-400 mt-1">
+            Register hostel owners, manage contact profiles, and configure student-facing hostel listings.
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          leftIcon={<Plus className="h-4 w-4" />}
+          onClick={handleOpenAddModal}
+        >
+          Add Property Admin
+        </Button>
+      </div>
+
+      {/* 2. Top Stats Counter */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xs dark:border-[#1F2E45] dark:bg-[#121824]">
+          <p className="text-xs font-semibold text-[#64748B] dark:text-slate-400">Total Admins</p>
+          <p className="text-2xl font-bold text-[#172B45] dark:text-white mt-1">{admins.length}</p>
+        </div>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xs dark:border-[#1F2E45] dark:bg-[#121824]">
+          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Active Accounts</p>
+          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">
+            {admins.filter((a) => a.status === 'active').length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xs dark:border-[#1F2E45] dark:bg-[#121824]">
+          <p className="text-xs font-semibold text-rose-600 dark:text-rose-400">Inactive / Suspended</p>
+          <p className="text-2xl font-bold text-rose-700 dark:text-rose-300 mt-1">
+            {admins.filter((a) => a.status === 'inactive').length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xs dark:border-[#1F2E45] dark:bg-[#121824]">
+          <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Hostels Covered</p>
+          <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300 mt-1">
+            {new Set(admins.map((a) => a.propertyName)).size}
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Search and View Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 shadow-xs dark:border-[#1F2E45] dark:bg-[#121824]">
+        <div className="relative w-full sm:w-80">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by admin name, hostel, phone, email..."
+            className="w-full rounded-xl border border-[#E2E8F0] bg-slate-50/60 py-2 pl-10 pr-4 text-xs text-[#172B45] placeholder:text-slate-400 focus:border-[#142D4E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#142D4E]/15 dark:border-[#1F2E45] dark:bg-[#0F172A] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-indigo-500"
+          />
+        </div>
+
+        <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-2.5">
+          {/* Status Tabs */}
+          <div className="flex items-center rounded-xl bg-slate-100 p-1 dark:bg-[#0D1522] border border-transparent dark:border-[#1F2E45]">
+            {(['all', 'active', 'inactive'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setStatusFilter(tab)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${
+                  statusFilter === tab
+                    ? 'bg-white text-[#172B45] shadow-xs dark:bg-[#1A2536] dark:text-white'
+                    : 'text-[#64748B] hover:text-[#172B45] dark:text-slate-400 dark:hover:text-white'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Grid vs Table View */}
+          <div className="flex items-center rounded-xl border border-[#E2E8F0] bg-white p-1 dark:border-[#1F2E45] dark:bg-[#121824]">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-[#142D4E] text-white shadow-xs dark:bg-indigo-600'
+                  : 'text-slate-400 hover:text-[#172B45] dark:hover:text-white'
+              }`}
+              title="Card View"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-[#142D4E] text-white shadow-xs dark:bg-indigo-600'
+                  : 'text-slate-400 hover:text-[#172B45] dark:hover:text-white'
+              }`}
+              title="Table View"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Directory Display: Grid or Table */}
+      {viewMode === 'grid' ? (
+        filteredAdmins.length === 0 ? (
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-12 text-center dark:border-[#1F2E45] dark:bg-[#121824]">
+            <Users className="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600" />
+            <h3 className="mt-3 text-base font-semibold text-[#172B45] dark:text-white">
+              No property administrators found
+            </h3>
+            <p className="mt-1 text-xs text-[#64748B] dark:text-slate-400">
+              Try adjusting your search criteria or register a new property admin.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAdmins.map((admin) => (
+              <div
+                key={admin.id}
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-xs transition-all hover:shadow-md dark:border-[#1F2E45] dark:bg-[#121824]"
+              >
+                <div>
+                  {/* Top: Student-Facing Property Image Showcase */}
+                  <div className="relative h-44 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                    <img
+                      src={admin.image}
+                      alt={admin.propertyName}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+                    {/* Status badge top-left */}
+                    <div className="absolute left-3 top-3">
+                      <StatusBadge status={admin.status} />
+                    </div>
+
+                    {/* Student view indicator pill */}
+                    <div className="absolute right-3 top-3">
+                      <span className="rounded-lg bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm flex items-center gap-1">
+                        <Eye className="h-3 w-3 text-emerald-400" /> Student View Image
+                      </span>
+                    </div>
+
+                    {/* Property title over banner */}
+                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
+                        Assigned Property
+                      </p>
+                      <h3 className="text-base font-bold leading-tight drop-shadow-sm truncate">
+                        {admin.propertyName}
+                      </h3>
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-200 truncate">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                        {admin.address}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Body: Administrator Details */}
+                  <div className="p-5 pb-4">
+                    {/* Admin Header with Avatar */}
+                    <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-[#1F2E45]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#142D4E] dark:bg-indigo-600 text-white font-bold text-sm shadow-xs">
+                          {admin.ownerName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-[#64748B] dark:text-slate-400">
+                            Property Owner / Admin
+                          </p>
+                          <h4 className="text-sm font-bold text-[#172B45] dark:text-white">
+                            {admin.ownerName}
+                          </h4>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        {admin.id}
+                      </span>
+                    </div>
+
+                    {/* Contact Details List */}
+                    <div className="mt-3.5 space-y-2 text-xs">
+                      <div className="flex items-center justify-between text-[#64748B] dark:text-slate-400">
+                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                          <Phone className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Mobile Number:
+                        </span>
+                        <span className="font-semibold text-[#172B45] dark:text-white">{admin.phone}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[#64748B] dark:text-slate-400">
+                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                          <Mail className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Email Address:
+                        </span>
+                        <span className="font-semibold text-[#172B45] dark:text-white truncate max-w-[180px]">
+                          {admin.email}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[#64748B] dark:text-slate-400">
+                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                          <BedDouble className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Capacity:
+                        </span>
+                        <span className="font-semibold text-[#172B45] dark:text-white">
+                          {admin.totalRooms} Rooms • {admin.totalBeds} Beds
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Downside: Actions Footer */}
+                <div className="border-t border-[#E2E8F0] bg-slate-50/70 p-3.5 flex items-center justify-between dark:border-[#1F2E45] dark:bg-[#0E1522]">
+                  <button
+                    type="button"
+                    onClick={() => setViewingAdmin(admin)}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 dark:text-indigo-400 dark:hover:text-indigo-300 cursor-pointer"
+                  >
+                    View Details →
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(admin)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/80 hover:text-[#172B45] transition-colors dark:hover:bg-slate-800 dark:hover:text-white cursor-pointer"
+                      title="Edit Admin & Property"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStatus(admin.id)}
+                      className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
+                        admin.status === 'active'
+                          ? 'text-rose-500 hover:bg-rose-100/80 dark:hover:bg-rose-950/40'
+                          : 'text-emerald-600 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/40'
+                      }`}
+                      title={
+                        admin.status === 'active'
+                          ? 'Deactivate Account'
+                          : 'Activate Account'
+                      }
+                    >
+                      {admin.status === 'active' ? (
+                        <XCircle className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        /* Table View */
+        <DataTable columns={tableColumns} data={filteredAdmins} />
+      )}
+
+      {/* 5. Registration / Edit Modal Form */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={
+          editingAdmin
+            ? 'Edit Property Administrator'
+            : 'Register New Property Administrator'
+        }
+        description="Fill in the property administrator details, hostel physical address, and student display image."
+        size="lg"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" type="button" onClick={handleSubmitForm}>
+              {editingAdmin ? 'Save Changes' : 'Create Administrator'}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleSubmitForm} className="space-y-4">
+          {/* Quick Pre-fill from existing property if registering */}
+          {!editingAdmin && (
+            <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-3 dark:border-indigo-900/60 dark:bg-indigo-950/40">
+              <label className="block text-xs font-semibold text-indigo-950 dark:text-indigo-200 mb-1">
+                Link to Existing Property (Optional shortcut)
+              </label>
+              <select
+                onChange={(e) => handleSelectExistingProperty(e.target.value)}
+                defaultValue=""
+                className="w-full rounded-lg border border-indigo-200 bg-white py-1.5 px-3 text-xs text-[#172B45] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-indigo-800 dark:bg-[#0F172A] dark:text-white"
+              >
+                <option value="">-- Choose existing property or type new below --</option>
+                {initialProperties.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name} ({p.city})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Section: Property Info */}
+          <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-3">
+              <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              Property Information
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Field 1: Property Name */}
+              <FormField label="Property Name" required>
+                <Input
+                  placeholder="e.g. Grand Skyline Premier Hostel"
+                  value={formData.propertyName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, propertyName: e.target.value })
+                  }
+                  required
+                />
+              </FormField>
+
+              {/* City Selection */}
+              <FormField label="City / Region" required>
+                <Select
+                  value={formData.city}
+                  onChange={(e) =>
+                    setFormData({ ...formData, city: e.target.value })
+                  }
+                  options={[
+                    { value: 'Mumbai', label: 'Mumbai, Maharashtra' },
+                    { value: 'Pune', label: 'Pune, Maharashtra' },
+                    { value: 'Bangalore', label: 'Bangalore, Karnataka' },
+                    { value: 'Delhi', label: 'Delhi NCR' },
+                    { value: 'Hyderabad', label: 'Hyderabad, Telangana' },
+                  ]}
+                />
+              </FormField>
+            </div>
+
+            {/* Field 5: Property Address ("property ad") */}
+            <div className="mt-3">
+              <FormField label="Property Address" hint="Full physical address shown to students" required>
+                <Input
+                  placeholder="e.g. Opp. University North Gate, Powai Road"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  required
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Section: Property Owner / Admin Contact */}
+          <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-3">
+              <UserCheck className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              Administrator Details
+            </h4>
+
+            {/* Field 2: Property Owner Name */}
+            <FormField label="Property Owner Name" required>
+              <Input
+                placeholder="e.g. Rahul Sharma"
+                value={formData.ownerName}
+                onChange={(e) =>
+                  setFormData({ ...formData, ownerName: e.target.value })
+                }
+                required
+              />
+            </FormField>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+              {/* Field 3: Mobile Number */}
+              <FormField label="Mobile Number" required>
+                <Input
+                  type="tel"
+                  placeholder="+91 98201 12345"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  required
+                />
+              </FormField>
+
+              {/* Field 4: Email Address */}
+              <FormField label="Email Address" required>
+                <Input
+                  type="email"
+                  placeholder="admin@skylinehostels.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  required
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Field 6: Property Image (Single display image for students/public) */}
+          <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-2">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              Property Display Image
+            </h4>
+            <p className="text-[11px] text-[#64748B] dark:text-slate-400 mb-2">
+              Single banner image showcased to students, parents, and prospective residents on mobile/web.
+            </p>
+
+            <FormField label="Image URL" required>
+              <Input
+                placeholder="https://images.unsplash.com/photo-..."
+                value={formData.image}
+                onChange={(e) =>
+                  setFormData({ ...formData, image: e.target.value })
+                }
+                required
+              />
+            </FormField>
+
+            {/* Quick Presets */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400">Presets:</span>
+              {imagePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, image: preset.url })}
+                  className={`rounded-lg px-2.5 py-1 text-xs border transition-all cursor-pointer ${
+                    formData.image === preset.url
+                      ? 'border-indigo-600 bg-indigo-50 font-semibold text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/60 dark:text-indigo-300'
+                      : 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-slate-50 dark:border-[#1F2E45] dark:bg-[#121824] dark:text-slate-300 dark:hover:bg-[#1A2536]'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Student Card Preview */}
+            {formData.image && (
+              <div className="mt-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
+                  <Eye className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                  Student & Public Preview Card
+                </p>
+                <div className="relative h-32 w-full overflow-hidden rounded-xl border border-[#E2E8F0] bg-slate-100 dark:border-[#1F2E45] dark:bg-slate-800">
+                  <img
+                    src={formData.image}
+                    alt="Preview"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                  <div className="absolute bottom-2 left-3 right-3 text-white">
+                    <p className="text-xs font-bold leading-tight drop-shadow-sm">
+                      {formData.propertyName || 'Property Name Preview'}
+                    </p>
+                    <p className="text-[10px] text-slate-200 truncate">
+                      {formData.address || 'Address preview shown to students'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section: Capacity & Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormField label="Total Rooms" required>
+              <Input
+                type="number"
+                min="1"
+                placeholder="30"
+                value={formData.totalRooms}
+                onChange={(e) =>
+                  setFormData({ ...formData, totalRooms: Number(e.target.value) })
+                }
+                required
+              />
+            </FormField>
+
+            <FormField label="Total Beds" required>
+              <Input
+                type="number"
+                min="1"
+                placeholder="80"
+                value={formData.totalBeds}
+                onChange={(e) =>
+                  setFormData({ ...formData, totalBeds: Number(e.target.value) })
+                }
+                required
+              />
+            </FormField>
+
+            <FormField label="Account Status" required>
+              <Select
+                value={formData.status}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    status: e.target.value as 'active' | 'inactive',
+                  })
+                }
+                options={[
+                  { value: 'active', label: 'Active (Operational)' },
+                  { value: 'inactive', label: 'Inactive (Suspended)' },
+                ]}
+              />
+            </FormField>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 6. View Details Modal */}
+      {viewingAdmin && (
+        <Modal
+          isOpen={!!viewingAdmin}
+          onClose={() => setViewingAdmin(null)}
+          title="Administrator Profile & Property Details"
+          size="md"
+          footer={
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setViewingAdmin(null)}
+            >
+              Close
+            </Button>
+          }
+        >
+          <div className="space-y-4">
+            {/* Property Showcase Banner */}
+            <div className="relative h-44 w-full overflow-hidden rounded-xl border border-[#E2E8F0] dark:border-[#1F2E45]">
+              <img
+                src={viewingAdmin.image}
+                alt={viewingAdmin.propertyName}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3 text-white">
+                <span className="rounded-md bg-white/20 px-2 py-0.5 text-[10px] font-semibold backdrop-blur-xs">
+                  {viewingAdmin.city}
+                </span>
+                <h3 className="text-base font-bold mt-1">
+                  {viewingAdmin.propertyName}
+                </h3>
+                <p className="text-xs text-slate-200 flex items-center gap-1 mt-0.5">
+                  <MapPin className="h-3.5 w-3.5 text-indigo-400" />
+                  {viewingAdmin.address}
+                </p>
+              </div>
+            </div>
+
+            {/* Profile Info Card */}
+            <div className="rounded-xl border border-[#E2E8F0] bg-slate-50 p-4 space-y-3 dark:border-[#1F2E45] dark:bg-[#0E1522]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#142D4E] dark:bg-indigo-600 text-white font-bold text-base">
+                    {viewingAdmin.ownerName.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#172B45] dark:text-white">
+                      {viewingAdmin.ownerName}
+                    </h4>
+                    <p className="text-xs text-[#64748B] dark:text-slate-400">Property Owner & Manager</p>
+                  </div>
+                </div>
+                <StatusBadge status={viewingAdmin.status} />
+              </div>
+
+              <div className="border-t border-[#E2E8F0] pt-3 grid grid-cols-2 gap-3 text-xs dark:border-[#1F2E45]">
+                <div>
+                  <span className="text-[#64748B] dark:text-slate-400 block">Mobile Number</span>
+                  <span className="font-semibold text-[#172B45] dark:text-white">
+                    {viewingAdmin.phone}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#64748B] dark:text-slate-400 block">Email Address</span>
+                  <span className="font-semibold text-[#172B45] dark:text-white truncate block">
+                    {viewingAdmin.email}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#64748B] dark:text-slate-400 block">Total Capacity</span>
+                  <span className="font-semibold text-[#172B45] dark:text-white">
+                    {viewingAdmin.totalRooms} Rooms • {viewingAdmin.totalBeds} Beds
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#64748B] dark:text-slate-400 block">Registered On</span>
+                  <span className="font-semibold text-[#172B45] dark:text-white">
+                    {viewingAdmin.joinedDate}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 flex items-start gap-2.5 text-xs text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
+              <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+              <span>
+                This administrator is authorized to oversee bed allocations, resident check-ins, and maintenance for{' '}
+                <strong className="dark:text-white">{viewingAdmin.propertyName}</strong>.
+              </span>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
