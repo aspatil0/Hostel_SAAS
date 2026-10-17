@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty } from 'class-validator';
-import { UserStatus } from '@prisma/client';
+import { UserStatus } from '../../common/enums.js';
 
 export class UpdateAdminStatusDto {
   @IsEnum(UserStatus, {

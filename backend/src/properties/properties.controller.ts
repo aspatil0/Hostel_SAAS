@@ -9,7 +9,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { Role, PropertyStatus } from '@prisma/client';
+import { Role, PropertyStatus } from '../common/enums.js';
 import { PropertiesService } from './properties.service.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';

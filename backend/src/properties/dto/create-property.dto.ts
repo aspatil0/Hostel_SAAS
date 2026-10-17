@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import { PropertyType } from '@prisma/client';
+import { PropertyType } from '../../common/enums.js';
 
 export class CreatePropertyDto {
   @IsString()
