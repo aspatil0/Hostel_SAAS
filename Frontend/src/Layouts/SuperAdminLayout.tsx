@@ -16,6 +16,9 @@ export function SuperAdminLayout() {
     if (location.pathname.includes('/admin/admins')) {
       return 'Property Administrators';
     }
+    if (location.pathname.includes('/admin/marketing')) {
+      return 'Marketing & Campaign Hub';
+    }
     return 'Super Admin Dashboard';
   };
 

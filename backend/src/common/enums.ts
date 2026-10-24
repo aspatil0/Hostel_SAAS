@@ -1,19 +1,4 @@
-export enum Role {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  PROPERTY_ADMIN = 'PROPERTY_ADMIN',
-}
-
-export enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-}
-
-export enum PropertyStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-}
-
-export enum PropertyType {
-  PG = 'PG',
-  HOSTEL = 'HOSTEL',
-}
+// Re-export Prisma-generated enums so all source files share the same types.
+// This file existed as a workaround before `prisma generate` was run.
+// Now that the client is generated, we simply proxy through @prisma/client.
+export { Role, UserStatus, PropertyStatus, PropertyType } from '@prisma/client';

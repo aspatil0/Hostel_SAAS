@@ -16,6 +16,7 @@ import {
   Eye,
   Sparkles,
   Loader2,
+  Upload,
 } from 'lucide-react';
 import {
   Button,
@@ -160,11 +161,11 @@ export function PropertiesPage() {
         prev.map((p) =>
           p.id === editingProperty.id
             ? {
-                ...p,
-                ...formData,
-                totalRooms: Number(formData.totalRooms),
-                totalBeds: Number(formData.totalBeds),
-              }
+              ...p,
+              ...formData,
+              totalRooms: Number(formData.totalRooms),
+              totalBeds: Number(formData.totalBeds),
+            }
             : p
         )
       );
@@ -207,6 +208,27 @@ export function PropertiesPage() {
       url: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80',
     },
   ];
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) =>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+
+
+    if(!file.type.startsWith("image/")){
+      alert("Please upload an image file (PNG, JPG, WEBP)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload=()=>{
+      if(typeof reader.result === 'string')
+      {
+        setFormData(prev =>({...prev , image :reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+    
+  }
 
   // Table Columns Definition
   const tableColumns: Column<Property>[] = [
@@ -262,13 +284,12 @@ export function PropertiesPage() {
             </div>
             <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
               <div
-                className={`h-full rounded-full ${
-                  rate > 90
+                className={`h-full rounded-full ${rate > 90
                     ? 'bg-rose-500'
                     : rate > 70
-                    ? 'bg-indigo-600'
-                    : 'bg-emerald-500'
-                }`}
+                      ? 'bg-indigo-600'
+                      : 'bg-emerald-500'
+                  }`}
                 style={{ width: `${rate}%` }}
               />
             </div>
@@ -364,11 +385,10 @@ export function PropertiesPage() {
                 key={tab}
                 type="button"
                 onClick={() => setStatusFilter(tab)}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${
-                  statusFilter === tab
+                className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize transition-all cursor-pointer ${statusFilter === tab
                     ? 'bg-white text-[#172B45] shadow-xs dark:bg-[#1A2536] dark:text-white'
                     : 'text-[#64748B] hover:text-[#172B45] dark:text-slate-400 dark:hover:text-white'
-                }`}
+                  }`}
               >
                 {tab}
               </button>
@@ -380,11 +400,10 @@ export function PropertiesPage() {
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
-                viewMode === 'grid'
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${viewMode === 'grid'
                   ? 'bg-[#142D4E] text-white shadow-xs dark:bg-indigo-600'
                   : 'text-slate-400 hover:text-[#172B45] dark:hover:text-white'
-              }`}
+                }`}
               title="Card Grid View"
             >
               <LayoutGrid className="h-4 w-4" />
@@ -392,11 +411,10 @@ export function PropertiesPage() {
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
-                viewMode === 'table'
+              className={`rounded-lg p-1.5 transition-colors cursor-pointer ${viewMode === 'table'
                   ? 'bg-[#142D4E] text-white shadow-xs dark:bg-indigo-600'
                   : 'text-slate-400 hover:text-[#172B45] dark:hover:text-white'
-              }`}
+                }`}
               title="Table View"
             >
               <List className="h-4 w-4" />
@@ -490,13 +508,12 @@ export function PropertiesPage() {
                         </div>
                         <div className="mt-1 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all ${
-                              occupancyRate > 90
+                            className={`h-full rounded-full transition-all ${occupancyRate > 90
                                 ? 'bg-rose-500'
                                 : occupancyRate > 70
-                                ? 'bg-indigo-600 dark:bg-indigo-500'
-                                : 'bg-emerald-500'
-                            }`}
+                                  ? 'bg-indigo-600 dark:bg-indigo-500'
+                                  : 'bg-emerald-500'
+                              }`}
                             style={{ width: `${occupancyRate}%` }}
                           />
                         </div>
@@ -533,11 +550,10 @@ export function PropertiesPage() {
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(prop.id)}
-                          className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
-                            prop.status === 'active'
+                          className={`rounded-lg p-1.5 transition-colors cursor-pointer ${prop.status === 'active'
                               ? 'text-rose-500 hover:bg-rose-100/80 dark:hover:bg-rose-950/40'
                               : 'text-emerald-600 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/40'
-                          }`}
+                            }`}
                           title={
                             prop.status === 'active'
                               ? 'Deactivate Property'
@@ -582,7 +598,7 @@ export function PropertiesPage() {
         onClose={() => setIsModalOpen(false)}
         title={editingProperty ? 'Edit Property' : 'Add New Property'}
         description="Configure campus hostel details, upload display image, and assign property administration."
-        size="lg"
+        size="xl"
         footer={
           <>
             <Button
@@ -612,19 +628,10 @@ export function PropertiesPage() {
             </FormField>
 
             <FormField label="City / Region" required>
-              <Select
-                value={formData.city}
-                onChange={(e) =>
-                  setFormData({ ...formData, city: e.target.value })
-                }
-                options={[
-                  { value: 'Mumbai', label: 'Mumbai, Maharashtra' },
-                  { value: 'Pune', label: 'Pune, Maharashtra' },
-                  { value: 'Bangalore', label: 'Bangalore, Karnataka' },
-                  { value: 'Delhi', label: 'Delhi NCR' },
-                  { value: 'Hyderabad', label: 'Hyderabad, Telangana' },
-                ]}
-              />
+              <Input 
+              placeholder='e.g. Pune , Maharashtra'
+              value={formData.city}
+              onChange={(e)=> setFormData({...formData,city:e.target.value})}/>
             </FormField>
           </div>
 
@@ -646,14 +653,32 @@ export function PropertiesPage() {
               hint="Paste an image URL or pick one of the hostel presets below"
               required
             >
-              <Input
-                placeholder="https://example.com/hostel-photo.jpg"
-                value={formData.image}
-                onChange={(e) =>
-                  setFormData({ ...formData, image: e.target.value })
-                }
-                required
-              />
+             <div className="flex items-center gap-3">
+              {/* Direct URL input */}
+              <div className="flex-1">
+                <Input
+                  placeholder="Paste image URL or upload from device →"
+                  value={formData.image}
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                  required
+                />
+              </div>
+              {/* Device Upload Trigger */}
+              <label
+                htmlFor="property-image-file"
+                className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-[#E2E8F0] bg-white text-[#172B45] hover:bg-slate-50 cursor-pointer transition-colors dark:border-[#1F2E45] dark:bg-[#121824] dark:text-white"
+              >
+                <Upload className="h-4 w-4 text-indigo-600" />
+                <span>Upload File</span>
+                <input
+                  id="property-image-file"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageFileUpload}
+                />
+              </label>
+            </div>
             </FormField>
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -667,11 +692,10 @@ export function PropertiesPage() {
                   onClick={() =>
                     setFormData({ ...formData, image: preset.url })
                   }
-                  className={`rounded-lg px-2.5 py-1 text-xs border transition-all cursor-pointer ${
-                    formData.image === preset.url
+                  className={`rounded-lg px-2.5 py-1 text-xs border transition-all cursor-pointer ${formData.image === preset.url
                       ? 'border-indigo-600 bg-indigo-50 font-semibold text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/60 dark:text-indigo-300'
                       : 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-slate-50 dark:border-[#1F2E45] dark:bg-[#121824] dark:text-slate-300 dark:hover:bg-[#1A2536]'
-                  }`}
+                    }`}
                 >
                   {preset.label}
                 </button>
@@ -819,7 +843,7 @@ export function PropertiesPage() {
                   {Math.round(
                     (selectedPropertyDetails.occupiedBeds /
                       selectedPropertyDetails.totalBeds) *
-                      100
+                    100
                   )}
                   %)
                 </span>

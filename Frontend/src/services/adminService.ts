@@ -51,36 +51,52 @@ export const adminService = {
     image?: string;
     totalRooms?: number;
     totalBeds?: number;
+    occupiedBeds?: number;
     propertyId?: number;
     password?: string;
+    portalPassword?: string;
     status?: 'active' | 'inactive';
   }): Promise<PropertyAdmin> {
     try {
-      const response = await apiClient.post<any>('/admins', {
+      const payload = {
         name: data.ownerName,
         email: data.email,
-        password: data.password || 'HostelAdmin@123',
-        propertyId: data.propertyId || 1,
+        password: data.portalPassword || data.password || 'HostelAdmin@123',
+        portalPassword: data.portalPassword || data.password || 'HostelAdmin@123',
+        propertyName: data.propertyName,
+        address: data.address,
+        city: data.city || 'Mumbai',
+        image: data.image,
+        totalRooms: data.totalRooms || 30,
+        totalBeds: data.totalBeds || 80,
+        occupiedBeds: data.occupiedBeds || 68,
+        propertyId: data.propertyId,
         phone: data.phone,
-      });
+        status: data.status || 'active',
+      };
+
+      const response = await apiClient.post<any>('/admins', payload);
 
       return {
         id: `ADM-${response.id || Date.now().toString().slice(-2)}`,
-        ownerName: response.name || data.ownerName,
+        ownerName: response.ownerName || response.name || data.ownerName,
         email: response.email || data.email,
-        phone: data.phone,
+        phone: response.phone || data.phone,
         propertyName: response.propertyName || data.propertyName,
-        address: data.address,
-        city: data.city || 'Mumbai',
+        address: response.address || data.address,
+        city: response.city || data.city || 'Mumbai',
         image:
           data.image ||
           'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
         totalRooms: data.totalRooms || 30,
         totalBeds: data.totalBeds || 80,
+        occupiedBeds: data.occupiedBeds || 68,
+        portalPassword: response.portalPassword || data.portalPassword || 'HostelAdmin@123',
         status: data.status || 'active',
-        joinedDate: new Date().toISOString().split('T')[0],
+        joinedDate: response.joinedDate || new Date().toISOString().split('T')[0],
       };
-    } catch {
+    } catch (err) {
+      console.error('Failed to create admin via API, fallback to local store:', err);
       // Offline fallback: generate local admin
       return {
         id: `ADM-${Date.now().toString().slice(-2)}`,

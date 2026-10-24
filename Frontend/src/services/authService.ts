@@ -12,6 +12,13 @@ export const SUPER_ADMIN_CREDENTIALS = {
   name: 'Aditya Raj Patil',
 };
 
+export const PROPERTY_ADMIN_CREDENTIALS = {
+  email: 'rahul.sharma@skylinehostels.com',
+  password: 'Skyline@2026',
+  name: 'Rahul Sharma',
+  propertyName: 'Grand Skyline Premier Hostel',
+};
+
 export const authService = {
   async login(credentials: LoginCredential): Promise<AuthResponse> {
     const trimmedEmail = credentials.email.trim().toLowerCase();
@@ -29,12 +36,16 @@ export const authService = {
         return response;
       }
     } catch (error: any) {
-      // If backend responded with an explicit 401 Unauthorized, reject unless it's the designated superadmin fallback
-      if (error?.statusCode === 401 && trimmedEmail !== SUPER_ADMIN_CREDENTIALS.email) {
+      // If backend responded with an explicit 401 Unauthorized, reject unless it matches fallback demo credentials
+      if (
+        error?.statusCode === 401 &&
+        trimmedEmail !== SUPER_ADMIN_CREDENTIALS.email &&
+        trimmedEmail !== PROPERTY_ADMIN_CREDENTIALS.email
+      ) {
         throw new Error(error.message || 'Invalid email or password');
       }
 
-      // If backend is offline (status 0) or local dev fallback matches superadmin credentials
+      // 2. Local dev fallback for Super Admin
       if (
         trimmedEmail === SUPER_ADMIN_CREDENTIALS.email &&
         credentials.password === SUPER_ADMIN_CREDENTIALS.password
@@ -47,6 +58,28 @@ export const authService = {
             email: SUPER_ADMIN_CREDENTIALS.email,
             role: 'SUPER_ADMIN',
             status: 'active',
+          },
+        };
+
+        localStorage.setItem('token', mockResponse.token);
+        localStorage.setItem('user', JSON.stringify(mockResponse.user));
+        return mockResponse;
+      }
+
+      // 3. Local dev fallback for Property Admin
+      if (
+        trimmedEmail === PROPERTY_ADMIN_CREDENTIALS.email &&
+        credentials.password === PROPERTY_ADMIN_CREDENTIALS.password
+      ) {
+        const mockResponse: AuthResponse = {
+          token: `dev_propertyadmin_jwt_${Date.now()}`,
+          user: {
+            _id: 'usr_propertyadmin_01',
+            name: PROPERTY_ADMIN_CREDENTIALS.name,
+            email: PROPERTY_ADMIN_CREDENTIALS.email,
+            role: 'PROPERTY_ADMIN',
+            status: 'active',
+            assignedProperties: ['PROP-01'],
           },
         };
 

@@ -52,7 +52,8 @@ model Property {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  propertyUsers PropertyUser[]
+  propertyUsers  PropertyUser[]
+  marketingPosts MarketingPost[]
 
   @@map("properties")
 }
@@ -71,4 +72,31 @@ model PropertyUser {
   @@index([userId])
   @@index([propertyId])
   @@map("property_users")
+}
+
+model MarketingPost {
+  id                  Int      @id @default(autoincrement())
+  propertyId          Int      @map("property_id")
+  propertyName        String   @map("property_name") @db.VarChar(255)
+  city                String   @db.VarChar(100)
+  address             String   @db.Text
+  image               String   @db.Text
+  headline            String   @db.VarChar(255)
+  description         String   @db.Text
+  startingPrice       Decimal  @map("starting_price") @db.Decimal(10, 2)
+  likes               Int      @default(0)
+  views               Int      @default(0)
+  inquiries           Int      @default(0)
+  isLiveOnLandingPage Boolean  @default(true) @map("is_live_on_landing_page")
+  whatsapp            String?  @db.VarChar(255)
+  instagram           String?  @db.VarChar(255)
+  facebook            String?  @db.VarChar(255)
+  twitter             String?  @db.VarChar(255)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@map("marketing_posts")
 }

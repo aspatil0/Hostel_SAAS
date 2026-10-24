@@ -14,10 +14,15 @@ import {
   LayoutGrid,
   List,
   Eye,
+  EyeOff,
   Sparkles,
   ShieldCheck,
   UserCheck,
   Loader2,
+  Upload,
+  KeyRound,
+  Copy,
+  Lock,
 } from 'lucide-react';
 import {
   Button,
@@ -44,6 +49,8 @@ export function PropertyAdminsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<PropertyAdmin | null>(null);
   const [viewingAdmin, setViewingAdmin] = useState<PropertyAdmin | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedCredentials, setCopiedCredentials] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -57,6 +64,8 @@ export function PropertyAdminsPage() {
       'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
     totalRooms: 35,
     totalBeds: 90,
+    occupiedBeds: 75,
+    portalPassword: 'Hostel@2026',
     status: 'active' as 'active' | 'inactive',
   });
 
@@ -116,9 +125,48 @@ export function PropertyAdminsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Device file upload handler
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file (PNG, JPG, WEBP)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormData((prev) => ({ ...prev, image: reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Generate strong random password
+  const handleGeneratePassword = () => {
+    const specials = ['@', '#', '$', '!'];
+    const randomSpecial = specials[Math.floor(Math.random() * specials.length)];
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const newPass = `Hostel${randomSpecial}${randomNum}`;
+    setFormData((prev) => ({ ...prev, portalPassword: newPass }));
+  };
+
+  // Copy portal credentials to clipboard
+  const handleCopyCredentials = (adminEmail: string, pass: string, propName: string) => {
+    const text = `HostelOS Property Administrator Portal Access:\nPortal URL: ${window.location.origin}/login\nUsername / Email: ${adminEmail}\nPassword: ${pass}\nAssigned Property: ${propName}\nRole: Property Administrator`;
+    navigator.clipboard.writeText(text);
+    setCopiedCredentials(true);
+    setTimeout(() => setCopiedCredentials(false), 2500);
+  };
+
   // Handlers
   const handleOpenAddModal = () => {
     setEditingAdmin(null);
+    setShowPassword(false);
+    const initialPass = `Hostel@${Math.floor(1000 + Math.random() * 9000)}`;
     setFormData({
       propertyName: '',
       ownerName: '',
@@ -129,6 +177,8 @@ export function PropertyAdminsPage() {
       image: imagePresets[0].url,
       totalRooms: 30,
       totalBeds: 80,
+      occupiedBeds: 68,
+      portalPassword: initialPass,
       status: 'active',
     });
     setIsModalOpen(true);
@@ -136,6 +186,7 @@ export function PropertyAdminsPage() {
 
   const handleOpenEditModal = (admin: PropertyAdmin) => {
     setEditingAdmin(admin);
+    setShowPassword(false);
     setFormData({
       propertyName: admin.propertyName,
       ownerName: admin.ownerName,
@@ -146,6 +197,8 @@ export function PropertyAdminsPage() {
       image: admin.image,
       totalRooms: admin.totalRooms || 30,
       totalBeds: admin.totalBeds || 80,
+      occupiedBeds: admin.occupiedBeds ?? Math.round((admin.totalBeds || 80) * 0.85),
+      portalPassword: admin.portalPassword || 'Hostel@2026',
       status: admin.status,
     });
     setIsModalOpen(true);
@@ -188,6 +241,8 @@ export function PropertyAdminsPage() {
                 ...formData,
                 totalRooms: Number(formData.totalRooms),
                 totalBeds: Number(formData.totalBeds),
+                occupiedBeds: Number(formData.occupiedBeds ?? a.occupiedBeds ?? Math.round(Number(formData.totalBeds) * 0.85)),
+                portalPassword: formData.portalPassword || a.portalPassword || 'Hostel@2026',
               }
             : a
         )
@@ -202,6 +257,8 @@ export function PropertyAdminsPage() {
           ...formData,
           totalRooms: Number(formData.totalRooms),
           totalBeds: Number(formData.totalBeds),
+          occupiedBeds: Number(formData.occupiedBeds || Math.round(Number(formData.totalBeds) * 0.85)),
+          portalPassword: formData.portalPassword || 'Hostel@2026',
           joinedDate: new Date().toISOString().split('T')[0],
         };
       }
@@ -459,143 +516,192 @@ export function PropertyAdminsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAdmins.map((admin) => (
-              <div
-                key={admin.id}
-                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-xs transition-all hover:shadow-md dark:border-[#1F2E45] dark:bg-[#121824]"
-              >
-                <div>
-                  {/* Top: Student-Facing Property Image Showcase */}
-                  <div className="relative h-44 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-                    <img
-                      src={admin.image}
-                      alt={admin.propertyName}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+            {filteredAdmins.map((admin) => {
+              const totalBeds = Number(admin.totalBeds) || 80;
+              const occupiedBeds = Number(admin.occupiedBeds ?? Math.round(totalBeds * 0.85));
+              const vacantBeds = Math.max(0, totalBeds - occupiedBeds);
+              const occupancyRate = Math.min(100, Math.round((occupiedBeds / totalBeds) * 100));
+              const totalRooms = Number(admin.totalRooms) || 30;
+              const occupiedRooms = Math.min(totalRooms, Math.ceil((occupiedBeds / totalBeds) * totalRooms));
 
-                    {/* Status badge top-left */}
-                    <div className="absolute left-3 top-3">
-                      <StatusBadge status={admin.status} />
+              return (
+                <div
+                  key={admin.id}
+                  onClick={() => setViewingAdmin(admin)}
+                  className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-xs transition-all hover:shadow-md hover:border-indigo-300 dark:border-[#1F2E45] dark:bg-[#121824] dark:hover:border-indigo-600 cursor-pointer"
+                >
+                  <div>
+                    {/* Top: Student-Facing Property Image Showcase */}
+                    <div className="relative h-44 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+                      <img
+                        src={admin.image}
+                        alt={admin.propertyName}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+
+                      {/* Status badge top-left */}
+                      <div className="absolute left-3 top-3">
+                        <StatusBadge status={admin.status} />
+                      </div>
+
+                      {/* Student view indicator pill */}
+                      <div className="absolute right-3 top-3">
+                        <span className="rounded-lg bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm flex items-center gap-1">
+                          <Eye className="h-3 w-3 text-emerald-400" /> Student View
+                        </span>
+                      </div>
+
+                      {/* Property title over banner */}
+                      <div className="absolute bottom-3 left-3 right-3 text-white">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
+                          Assigned Property
+                        </p>
+                        <h3 className="text-base font-bold leading-tight drop-shadow-sm truncate">
+                          {admin.propertyName}
+                        </h3>
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-200 truncate">
+                          <MapPin className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                          {admin.address}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Student view indicator pill */}
-                    <div className="absolute right-3 top-3">
-                      <span className="rounded-lg bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm flex items-center gap-1">
-                        <Eye className="h-3 w-3 text-emerald-400" /> Student View Image
-                      </span>
-                    </div>
-
-                    {/* Property title over banner */}
-                    <div className="absolute bottom-3 left-3 right-3 text-white">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-300">
-                        Assigned Property
-                      </p>
-                      <h3 className="text-base font-bold leading-tight drop-shadow-sm truncate">
-                        {admin.propertyName}
-                      </h3>
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-200 truncate">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
-                        {admin.address}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Body: Administrator Details */}
-                  <div className="p-5 pb-4">
-                    {/* Admin Header with Avatar */}
-                    <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-[#1F2E45]">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#142D4E] dark:bg-indigo-600 text-white font-bold text-sm shadow-xs">
-                          {admin.ownerName.charAt(0)}
+                    {/* Body: Live Student Bedroom & Bed Occupancy Insights */}
+                    <div className="p-5 pb-4">
+                      {/* Header with Admin Avatar & Property Status */}
+                      <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-[#1F2E45]">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#142D4E] dark:bg-indigo-600 text-white font-bold text-xs shadow-xs">
+                            {admin.ownerName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-[#64748B] dark:text-slate-400">
+                              Property Admin
+                            </p>
+                            <h4 className="text-xs font-bold text-[#172B45] dark:text-white">
+                              {admin.ownerName}
+                            </h4>
+                          </div>
                         </div>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {admin.id}
+                        </span>
+                      </div>
+
+                      {/* Live Student Occupancy Metric Section */}
+                      <div className="mt-3.5 space-y-3">
+                        {/* Occupancy Rate Bar */}
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider font-semibold text-[#64748B] dark:text-slate-400">
-                            Property Owner / Admin
-                          </p>
-                          <h4 className="text-sm font-bold text-[#172B45] dark:text-white">
-                            {admin.ownerName}
-                          </h4>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-[#172B45] dark:text-white flex items-center gap-1.5">
+                              <BedDouble className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                              Student Live Occupancy
+                            </span>
+                            <span
+                              className={`text-[11px] font-bold ${
+                                occupancyRate >= 90
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : occupancyRate >= 70
+                                  ? 'text-indigo-600 dark:text-indigo-400'
+                                  : 'text-emerald-600 dark:text-emerald-400'
+                              }`}
+                            >
+                              {occupancyRate}% Full
+                            </span>
+                          </div>
+
+                          <div className="mt-1.5 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                occupancyRate >= 90
+                                  ? 'bg-rose-500'
+                                  : occupancyRate >= 70
+                                  ? 'bg-indigo-600 dark:bg-indigo-500'
+                                  : 'bg-emerald-500'
+                              }`}
+                              style={{ width: `${occupancyRate}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Live Count Grid: Purchased/Taken vs Vacant */}
+                        <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+                          <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-2.5 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+                            <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                              Taken by Students/PG
+                            </span>
+                            <p className="mt-0.5 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                              {occupiedBeds} <span className="font-normal text-[11px] text-slate-600 dark:text-slate-400">/ {totalBeds} Beds</span>
+                            </p>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              ({occupiedRooms} of {totalRooms} rooms active)
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+                            <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                              Available Vacancy
+                            </span>
+                            <p className="mt-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                              {vacantBeds} <span className="font-normal text-[11px] text-slate-600 dark:text-slate-400">Beds Open</span>
+                            </p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">
+                              Ready for admission
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        {admin.id}
-                      </span>
-                    </div>
-
-                    {/* Contact Details List */}
-                    <div className="mt-3.5 space-y-2 text-xs">
-                      <div className="flex items-center justify-between text-[#64748B] dark:text-slate-400">
-                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                          <Phone className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Mobile Number:
-                        </span>
-                        <span className="font-semibold text-[#172B45] dark:text-white">{admin.phone}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[#64748B] dark:text-slate-400">
-                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                          <Mail className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Email Address:
-                        </span>
-                        <span className="font-semibold text-[#172B45] dark:text-white truncate max-w-[180px]">
-                          {admin.email}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[#64748B] dark:text-slate-400">
-                        <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-                          <BedDouble className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> Capacity:
-                        </span>
-                        <span className="font-semibold text-[#172B45] dark:text-white">
-                          {admin.totalRooms} Rooms • {admin.totalBeds} Beds
-                        </span>
-                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Downside: Actions Footer */}
-                <div className="border-t border-[#E2E8F0] bg-slate-50/70 p-3.5 flex items-center justify-between dark:border-[#1F2E45] dark:bg-[#0E1522]">
-                  <button
-                    type="button"
-                    onClick={() => setViewingAdmin(admin)}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 dark:text-indigo-400 dark:hover:text-indigo-300 cursor-pointer"
+                  {/* Downside: Actions Footer */}
+                  <div
+                    className="border-t border-[#E2E8F0] bg-slate-50/70 p-3.5 flex items-center justify-between dark:border-[#1F2E45] dark:bg-[#0E1522]"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    View Details →
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewingAdmin(admin)}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1 dark:text-indigo-400 dark:hover:text-indigo-300 cursor-pointer"
+                    >
+                      View Live Details →
+                    </button>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditModal(admin)}
-                      className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/80 hover:text-[#172B45] transition-colors dark:hover:bg-slate-800 dark:hover:text-white cursor-pointer"
-                      title="Edit Admin & Property"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStatus(admin.id)}
-                      className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
-                        admin.status === 'active'
-                          ? 'text-rose-500 hover:bg-rose-100/80 dark:hover:bg-rose-950/40'
-                          : 'text-emerald-600 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/40'
-                      }`}
-                      title={
-                        admin.status === 'active'
-                          ? 'Deactivate Account'
-                          : 'Activate Account'
-                      }
-                    >
-                      {admin.status === 'active' ? (
-                        <XCircle className="h-4 w-4" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(admin)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200/80 hover:text-[#172B45] transition-colors dark:hover:bg-slate-800 dark:hover:text-white cursor-pointer"
+                        title="Edit Admin & Property"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(admin.id)}
+                        className={`rounded-lg p-1.5 transition-colors cursor-pointer ${
+                          admin.status === 'active'
+                            ? 'text-rose-500 hover:bg-rose-100/80 dark:hover:bg-rose-950/40'
+                            : 'text-emerald-600 hover:bg-emerald-100/80 dark:hover:bg-emerald-950/40'
+                        }`}
+                        title={
+                          admin.status === 'active'
+                            ? 'Deactivate Account'
+                            : 'Activate Account'
+                        }
+                      >
+                        {admin.status === 'active' ? (
+                          <XCircle className="h-4 w-4" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )
       ) : (
@@ -612,8 +718,8 @@ export function PropertyAdminsPage() {
             ? 'Edit Property Administrator'
             : 'Register New Property Administrator'
         }
-        description="Fill in the property administrator details, hostel physical address, and student display image."
-        size="lg"
+        description="Configure hostel administration, physical location, live room & bed capacity, and student showcase banner."
+        size="xl"
         footer={
           <>
             <Button
@@ -671,25 +777,20 @@ export function PropertyAdminsPage() {
                 />
               </FormField>
 
-              {/* City Selection */}
+              {/* City Selection (Manual Typing) */}
               <FormField label="City / Region" required>
-                <Select
+                <Input
+                  placeholder="e.g. Pune, Maharashtra"
                   value={formData.city}
                   onChange={(e) =>
                     setFormData({ ...formData, city: e.target.value })
                   }
-                  options={[
-                    { value: 'Mumbai', label: 'Mumbai, Maharashtra' },
-                    { value: 'Pune', label: 'Pune, Maharashtra' },
-                    { value: 'Bangalore', label: 'Bangalore, Karnataka' },
-                    { value: 'Delhi', label: 'Delhi NCR' },
-                    { value: 'Hyderabad', label: 'Hyderabad, Telangana' },
-                  ]}
+                  required
                 />
               </FormField>
             </div>
 
-            {/* Field 5: Property Address ("property ad") */}
+            {/* Field 5: Property Address */}
             <div className="mt-3">
               <FormField label="Property Address" hint="Full physical address shown to students" required>
                 <Input
@@ -712,7 +813,7 @@ export function PropertyAdminsPage() {
             </h4>
 
             {/* Field 2: Property Owner Name */}
-            <FormField label="Property Owner Name" required>
+            <FormField label="Property Owner / Admin Name" required>
               <Input
                 placeholder="e.g. Rahul Sharma"
                 value={formData.ownerName}
@@ -750,27 +851,133 @@ export function PropertyAdminsPage() {
                 />
               </FormField>
             </div>
+
+            {/* Field: Portal Access & Password Provisioning */}
+            <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                  <KeyRound className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  Portal Access & Login Credentials
+                </span>
+                <span className="text-[10px] font-semibold rounded bg-indigo-100 px-2 py-0.5 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                  Role: Property Admin
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#64748B] dark:text-slate-400 mb-1">
+                    Portal Login Username
+                  </label>
+                  <div className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs font-mono text-[#172B45] dark:border-[#1F2E45] dark:bg-[#0E1522] dark:text-white truncate">
+                    {formData.email || 'Enter email above to generate username'}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-[#64748B] dark:text-slate-400">
+                      Assigned Portal Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleGeneratePassword}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles className="h-3 w-3" /> Auto-Generate
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.portalPassword}
+                      onChange={(e) =>
+                        setFormData({ ...formData, portalPassword: e.target.value })
+                      }
+                      placeholder="e.g. Skyline@2026"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-[#172B45] dark:hover:text-white cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-[10px] text-[#64748B] dark:text-slate-400">
+                  Credentials allow the administrator to log into their dedicated Property Admin workspace.
+                </p>
+                {formData.email && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopyCredentials(
+                        formData.email,
+                        formData.portalPassword,
+                        formData.propertyName || 'Hostel'
+                      )
+                    }
+                    className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 cursor-pointer"
+                  >
+                    {copiedCredentials ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="text-emerald-600">Copied to Clipboard!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy Login Credentials</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Field 6: Property Image (Single display image for students/public) */}
+          {/* Field 6: Property Image with Device Upload & Presets */}
           <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-2">
               <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               Property Display Image
             </h4>
             <p className="text-[11px] text-[#64748B] dark:text-slate-400 mb-2">
-              Single banner image showcased to students, parents, and prospective residents on mobile/web.
+              Banner image showcased to students, parents, and prospective residents on mobile & web.
             </p>
 
-            <FormField label="Image URL" required>
-              <Input
-                placeholder="https://images.unsplash.com/photo-..."
-                value={formData.image}
-                onChange={(e) =>
-                  setFormData({ ...formData, image: e.target.value })
-                }
-                required
-              />
+            <FormField label="Property Image" hint="Paste an image URL or upload directly from your device" required>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Paste image URL or upload from device →"
+                    value={formData.image}
+                    onChange={(e) =>
+                      setFormData({ ...formData, image: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+                <label
+                  htmlFor="admin-property-file-upload"
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-[#E2E8F0] bg-white text-[#172B45] hover:bg-slate-50 cursor-pointer transition-colors dark:border-[#1F2E45] dark:bg-[#121824] dark:text-white shrink-0"
+                >
+                  <Upload className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Upload File</span>
+                  <input
+                    id="admin-property-file-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageFileUpload}
+                  />
+                </label>
+              </div>
             </FormField>
 
             {/* Quick Presets */}
@@ -819,8 +1026,8 @@ export function PropertyAdminsPage() {
             )}
           </div>
 
-          {/* Section: Capacity & Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Section: Capacity, Live Student Occupancy & Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <FormField label="Total Rooms" required>
               <Input
                 type="number"
@@ -847,6 +1054,19 @@ export function PropertyAdminsPage() {
               />
             </FormField>
 
+            <FormField label="Occupied Beds (Students)">
+              <Input
+                type="number"
+                min="0"
+                max={formData.totalBeds}
+                placeholder="68"
+                value={formData.occupiedBeds ?? ''}
+                onChange={(e) =>
+                  setFormData({ ...formData, occupiedBeds: Number(e.target.value) })
+                }
+              />
+            </FormField>
+
             <FormField label="Account Status" required>
               <Select
                 value={formData.status}
@@ -866,101 +1086,264 @@ export function PropertyAdminsPage() {
         </form>
       </Modal>
 
-      {/* 6. View Details Modal */}
-      {viewingAdmin && (
-        <Modal
-          isOpen={!!viewingAdmin}
-          onClose={() => setViewingAdmin(null)}
-          title="Administrator Profile & Property Details"
-          size="md"
-          footer={
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => setViewingAdmin(null)}
-            >
-              Close
-            </Button>
-          }
-        >
-          <div className="space-y-4">
-            {/* Property Showcase Banner */}
-            <div className="relative h-44 w-full overflow-hidden rounded-xl border border-[#E2E8F0] dark:border-[#1F2E45]">
-              <img
-                src={viewingAdmin.image}
-                alt={viewingAdmin.propertyName}
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-              <div className="absolute bottom-3 left-3 right-3 text-white">
-                <span className="rounded-md bg-white/20 px-2 py-0.5 text-[10px] font-semibold backdrop-blur-xs">
-                  {viewingAdmin.city}
-                </span>
-                <h3 className="text-base font-bold mt-1">
-                  {viewingAdmin.propertyName}
-                </h3>
-                <p className="text-xs text-slate-200 flex items-center gap-1 mt-0.5">
-                  <MapPin className="h-3.5 w-3.5 text-indigo-400" />
-                  {viewingAdmin.address}
-                </p>
-              </div>
-            </div>
+      {/* 6. View Details Modal with Live Student Occupancy Dashboard */}
+      {viewingAdmin && (() => {
+        const totalBeds = Number(viewingAdmin.totalBeds) || 80;
+        const occupiedBeds = Number(viewingAdmin.occupiedBeds ?? Math.round(totalBeds * 0.85));
+        const vacantBeds = Math.max(0, totalBeds - occupiedBeds);
+        const occupancyRate = Math.min(100, Math.round((occupiedBeds / totalBeds) * 100));
+        const totalRooms = Number(viewingAdmin.totalRooms) || 30;
+        const occupiedRooms = Math.min(totalRooms, Math.ceil((occupiedBeds / totalBeds) * totalRooms));
 
-            {/* Profile Info Card */}
-            <div className="rounded-xl border border-[#E2E8F0] bg-slate-50 p-4 space-y-3 dark:border-[#1F2E45] dark:bg-[#0E1522]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#142D4E] dark:bg-indigo-600 text-white font-bold text-base">
-                    {viewingAdmin.ownerName.charAt(0)}
+        return (
+          <Modal
+            isOpen={!!viewingAdmin}
+            onClose={() => setViewingAdmin(null)}
+            title="Property & Live Student Occupancy Overview"
+            size="lg"
+            footer={
+              <div className="flex items-center justify-between w-full">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    const target = viewingAdmin;
+                    setViewingAdmin(null);
+                    handleOpenEditModal(target);
+                  }}
+                >
+                  <Edit2 className="h-3.5 w-3.5 mr-1" />
+                  Edit Property & Admin
+                </Button>
+                <Button
+                  variant="primary"
+                  type="button"
+                  onClick={() => setViewingAdmin(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              {/* Property Showcase Banner */}
+              <div className="relative h-44 w-full overflow-hidden rounded-xl border border-[#E2E8F0] dark:border-[#1F2E45]">
+                <img
+                  src={viewingAdmin.image}
+                  alt={viewingAdmin.propertyName}
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+                <div className="absolute bottom-3 left-3 right-3 text-white">
+                  <span className="rounded-md bg-white/20 px-2 py-0.5 text-[10px] font-semibold backdrop-blur-xs">
+                    {viewingAdmin.city}
+                  </span>
+                  <h3 className="text-base font-bold mt-1">
+                    {viewingAdmin.propertyName}
+                  </h3>
+                  <p className="text-xs text-slate-200 flex items-center gap-1 mt-0.5">
+                    <MapPin className="h-3.5 w-3.5 text-indigo-400" />
+                    {viewingAdmin.address}
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Student & PG Guest Bedroom/Bed Count Statistics */}
+              <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 dark:border-[#1F2E45] dark:bg-[#121824] shadow-xs">
+                <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-[#1F2E45]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5">
+                    <BedDouble className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    Live Student & PG Guest Occupancy
+                  </h4>
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      occupancyRate >= 90
+                        ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                        : occupancyRate >= 70
+                        ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    }`}
+                  >
+                    {occupancyRate}% Occupied
+                  </span>
+                </div>
+
+                <div className="mt-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="rounded-xl bg-indigo-50/70 p-3 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/40">
+                    <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                      Purchased Beds
+                    </span>
+                    <p className="text-lg font-extrabold text-indigo-700 dark:text-indigo-300 mt-0.5">
+                      {occupiedBeds}
+                    </p>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Taken by Students
+                    </span>
+                  </div>
+
+                  <div className="rounded-xl bg-emerald-50/70 p-3 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40">
+                    <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                      Vacant Beds
+                    </span>
+                    <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5">
+                      {vacantBeds}
+                    </p>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                      Ready to Allocate
+                    </span>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60 border border-[#E2E8F0] dark:border-[#1F2E45]">
+                    <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                      Live Bedrooms
+                    </span>
+                    <p className="text-lg font-extrabold text-[#172B45] dark:text-white mt-0.5">
+                      {occupiedRooms} / {totalRooms}
+                    </p>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Active Rooms
+                    </span>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60 border border-[#E2E8F0] dark:border-[#1F2E45]">
+                    <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                      Total Capacity
+                    </span>
+                    <p className="text-lg font-extrabold text-[#172B45] dark:text-white mt-0.5">
+                      {totalBeds}
+                    </p>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Total Hostel Beds
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar */}
+                <div className="mt-3.5">
+                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        occupancyRate >= 90
+                          ? 'bg-rose-500'
+                          : occupancyRate >= 70
+                          ? 'bg-indigo-600'
+                          : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${occupancyRate}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Info Card (Admin Contact Info) */}
+              <div className="rounded-xl border border-[#E2E8F0] bg-slate-50 p-4 space-y-3 dark:border-[#1F2E45] dark:bg-[#0E1522]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#142D4E] dark:bg-indigo-600 text-white font-bold text-base">
+                      {viewingAdmin.ownerName.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-[#172B45] dark:text-white">
+                        {viewingAdmin.ownerName}
+                      </h4>
+                      <p className="text-xs text-[#64748B] dark:text-slate-400">
+                        Property Owner & Designated Admin • {viewingAdmin.id}
+                      </p>
+                    </div>
+                  </div>
+                  <StatusBadge status={viewingAdmin.status} />
+                </div>
+
+                <div className="border-t border-[#E2E8F0] pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs dark:border-[#1F2E45]">
+                  <div>
+                    <span className="text-[#64748B] dark:text-slate-400 block text-[11px]">Mobile Number</span>
+                    <span className="font-semibold text-[#172B45] dark:text-white flex items-center gap-1 mt-0.5">
+                      <Phone className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                      {viewingAdmin.phone}
+                    </span>
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-[#172B45] dark:text-white">
-                      {viewingAdmin.ownerName}
-                    </h4>
-                    <p className="text-xs text-[#64748B] dark:text-slate-400">Property Owner & Manager</p>
+                    <span className="text-[#64748B] dark:text-slate-400 block text-[11px]">Email Address</span>
+                    <span className="font-semibold text-[#172B45] dark:text-white truncate block flex items-center gap-1 mt-0.5">
+                      <Mail className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                      {viewingAdmin.email}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#64748B] dark:text-slate-400 block text-[11px]">Registered On</span>
+                    <span className="font-semibold text-[#172B45] dark:text-white block mt-0.5">
+                      {viewingAdmin.joinedDate}
+                    </span>
                   </div>
                 </div>
-                <StatusBadge status={viewingAdmin.status} />
               </div>
 
-              <div className="border-t border-[#E2E8F0] pt-3 grid grid-cols-2 gap-3 text-xs dark:border-[#1F2E45]">
-                <div>
-                  <span className="text-[#64748B] dark:text-slate-400 block">Mobile Number</span>
-                  <span className="font-semibold text-[#172B45] dark:text-white">
-                    {viewingAdmin.phone}
-                  </span>
+              {/* Portal Access & Credentials Card */}
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-2.5 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200">
+                      Administrator Portal Credentials
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCopyCredentials(
+                        viewingAdmin.email,
+                        viewingAdmin.portalPassword || 'Hostel@2026',
+                        viewingAdmin.propertyName
+                      )
+                    }
+                    className="flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 shadow-xs hover:bg-slate-50 transition-colors dark:bg-[#1A2536] dark:text-indigo-300 cursor-pointer"
+                  >
+                    {copiedCredentials ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="text-emerald-600 font-bold">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy Credentials</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <div>
-                  <span className="text-[#64748B] dark:text-slate-400 block">Email Address</span>
-                  <span className="font-semibold text-[#172B45] dark:text-white truncate block">
-                    {viewingAdmin.email}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[#64748B] dark:text-slate-400 block">Total Capacity</span>
-                  <span className="font-semibold text-[#172B45] dark:text-white">
-                    {viewingAdmin.totalRooms} Rooms • {viewingAdmin.totalBeds} Beds
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[#64748B] dark:text-slate-400 block">Registered On</span>
-                  <span className="font-semibold text-[#172B45] dark:text-white">
-                    {viewingAdmin.joinedDate}
-                  </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                  <div className="rounded-lg bg-white p-2.5 border border-[#E2E8F0] dark:bg-[#121824] dark:border-[#1F2E45]">
+                    <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                      Username / Email
+                    </span>
+                    <p className="font-mono font-bold text-[#172B45] dark:text-white mt-0.5 truncate">
+                      {viewingAdmin.email}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg bg-white p-2.5 border border-[#E2E8F0] dark:bg-[#121824] dark:border-[#1F2E45]">
+                    <span className="text-[10px] uppercase font-semibold text-[#64748B] dark:text-slate-400 block">
+                      Assigned Password
+                    </span>
+                    <p className="font-mono font-bold text-indigo-700 dark:text-indigo-300 mt-0.5">
+                      {viewingAdmin.portalPassword || 'Hostel@2026'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 flex items-start gap-2.5 text-xs text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
-              <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-              <span>
-                This administrator is authorized to oversee bed allocations, resident check-ins, and maintenance for{' '}
-                <strong className="dark:text-white">{viewingAdmin.propertyName}</strong>.
-              </span>
+              <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3 flex items-start gap-2.5 text-xs text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
+                <ShieldCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                <span>
+                  This administrator is authorized to oversee bed allocations, resident check-ins, and student fee collections for{' '}
+                  <strong className="dark:text-white">{viewingAdmin.propertyName}</strong>.
+                </span>
+              </div>
             </div>
-          </div>
-        </Modal>
-      )}
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
