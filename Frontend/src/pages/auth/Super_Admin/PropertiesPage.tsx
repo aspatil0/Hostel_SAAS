@@ -24,7 +24,6 @@ import {
   Modal,
   FormField,
   Input,
-  Select,
   DataTable,
   type Column,
 } from '@/components/ui';
@@ -103,7 +102,7 @@ export function PropertiesPage() {
       city: 'Mumbai',
       image:
         'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
-      ownerName: '',
+      ownerName: 'Unassigned',
       ownerPhone: '',
       ownerEmail: '',
       totalRooms: 30,
@@ -171,18 +170,26 @@ export function PropertiesPage() {
       );
     } else {
       let newProperty: Property;
+      const payload = {
+        ...formData,
+        ownerName: 'Unassigned',
+        ownerPhone: '',
+        ownerEmail: '',
+      };
+
       try {
-        newProperty = await propertyService.createProperty(formData);
+        newProperty = await propertyService.createProperty(payload);
       } catch {
         newProperty = {
           id: `PROP-${String(properties.length + 1).padStart(2, '0')}`,
-          ...formData,
+          ...payload,
           totalRooms: Number(formData.totalRooms),
           totalBeds: Number(formData.totalBeds),
           occupiedBeds: 0,
           createdAt: new Date().toISOString().split('T')[0],
         };
       }
+
       setProperties([newProperty, ...properties]);
     }
 
@@ -526,14 +533,18 @@ export function PropertiesPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 font-bold text-xs ring-1 ring-indigo-500/20">
-                          {prop.ownerName.charAt(0)}
+                          {prop.ownerName && prop.ownerName !== 'Unassigned' ? prop.ownerName.charAt(0) : '—'}
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wider font-semibold text-[#64748B] dark:text-slate-400">
                             Managed by
                           </p>
                           <p className="text-xs font-bold text-[#172B45] dark:text-white">
-                            {prop.ownerName}
+                            {prop.ownerName && prop.ownerName !== 'Unassigned' ? (
+                              prop.ownerName
+                            ) : (
+                              <span className="text-amber-600 dark:text-amber-400 font-semibold">Unassigned</span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -571,7 +582,7 @@ export function PropertiesPage() {
 
                     <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#64748B] dark:text-slate-400">
                       <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" /> {prop.ownerPhone}
+                        <Phone className="h-3 w-3" /> {prop.ownerPhone || 'No contact yet'}
                       </span>
                       <button
                         type="button"
@@ -597,7 +608,7 @@ export function PropertiesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingProperty ? 'Edit Property' : 'Add New Property'}
-        description="Configure campus hostel details, upload display image, and assign property administration."
+        description="Configure campus hostel details, upload display image, and set room & bed capacity."
         size="xl"
         footer={
           <>
@@ -740,50 +751,6 @@ export function PropertiesPage() {
                 required
               />
             </FormField>
-          </div>
-
-          {/* Property Admin Downside Fields */}
-          <div className="rounded-xl border border-[#E2E8F0] bg-slate-50/70 p-4 space-y-3 dark:border-[#1F2E45] dark:bg-[#0E1522]">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#172B45] dark:text-white flex items-center gap-1.5">
-              <UserCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              Property Admin / Manager Assignment
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <FormField label="Owner / Admin Name" required>
-                <Input
-                  placeholder="Rahul Sharma"
-                  value={formData.ownerName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ownerName: e.target.value })
-                  }
-                  required
-                />
-              </FormField>
-
-              <FormField label="Mobile Number" required>
-                <Input
-                  placeholder="+91 98201 12345"
-                  value={formData.ownerPhone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ownerPhone: e.target.value })
-                  }
-                  required
-                />
-              </FormField>
-
-              <FormField label="Email Address" required>
-                <Input
-                  type="email"
-                  placeholder="admin@skyline.com"
-                  value={formData.ownerEmail}
-                  onChange={(e) =>
-                    setFormData({ ...formData, ownerEmail: e.target.value })
-                  }
-                  required
-                />
-              </FormField>
-            </div>
           </div>
         </form>
       </Modal>

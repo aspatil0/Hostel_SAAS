@@ -3,7 +3,8 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Role, PropertyStatus, UserStatus } from '../common/enums.js';
+import * as bcrypt from 'bcrypt';
+import { Role, PropertyStatus, PropertyType, UserStatus } from '../common/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
@@ -14,27 +15,84 @@ export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreatePropertyDto) {
+    const propertyType = dto.propertyType || PropertyType.HOSTEL;
+    const initialStatus =
+      dto.status === 'inactive' || dto.status === PropertyStatus.INACTIVE
+        ? PropertyStatus.INACTIVE
+        : PropertyStatus.ACTIVE;
+
     const property = await this.prisma.property.create({
       data: {
-        name: dto.name,
-        propertyType: dto.propertyType,
+        name: dto.name.trim(),
+        propertyType,
         address: dto.address ?? '',
+        status: initialStatus,
       },
     });
+
+    let assignedUser: any = null;
+    const rawOwnerName = dto.ownerName?.trim();
+    const rawEmail = dto.ownerEmail?.trim().toLowerCase();
+    const fallbackEmail = rawOwnerName
+      ? `${rawOwnerName.toLowerCase().replace(/[^a-z0-9]/g, '.')}@hostelos.com`
+      : '';
+    const adminEmail = rawEmail || fallbackEmail;
+
+    if (adminEmail) {
+      try {
+        let user = await this.prisma.user.findUnique({
+          where: { email: adminEmail },
+        });
+
+        if (!user) {
+          const rawPassword = dto.portalPassword || 'HostelAdmin@123';
+          const passwordHash = await bcrypt.hash(rawPassword, 10);
+          user = await this.prisma.user.create({
+            data: {
+              name: rawOwnerName || 'Property Admin',
+              email: adminEmail,
+              passwordHash,
+              role: Role.PROPERTY_ADMIN,
+              status: UserStatus.ACTIVE,
+            },
+          });
+        }
+
+        await this.prisma.propertyUser.upsert({
+          where: {
+            unique_user_property_assignment: {
+              userId: user.id,
+              propertyId: property.id,
+            },
+          },
+          update: { role: Role.PROPERTY_ADMIN },
+          create: {
+            userId: user.id,
+            propertyId: property.id,
+            role: Role.PROPERTY_ADMIN,
+          },
+        });
+
+        assignedUser = user;
+      } catch (err) {
+        console.warn('Could not auto-provision property admin user:', err);
+      }
+    }
 
     return {
       id: `PROP-${String(property.id).padStart(2, '0')}`,
       rawId: property.id,
       name: property.name,
       address: property.address,
-      city: 'Mumbai',
+      city: dto.city || 'Mumbai',
       image:
+        dto.image ||
         'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=800&q=80',
-      ownerName: 'Unassigned',
-      ownerPhone: '',
-      ownerEmail: '',
-      totalRooms: 30,
-      totalBeds: 80,
+      ownerName: assignedUser?.name || rawOwnerName || 'Unassigned',
+      ownerPhone: dto.ownerPhone || '+91 98201 12345',
+      ownerEmail: assignedUser?.email || adminEmail || '',
+      totalRooms: Number(dto.totalRooms) || 30,
+      totalBeds: Number(dto.totalBeds) || 80,
       occupiedBeds: 0,
       status: property.status.toLowerCase() as 'active' | 'inactive',
       createdAt: property.createdAt.toISOString().split('T')[0],

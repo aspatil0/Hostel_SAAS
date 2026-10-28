@@ -98,4 +98,5 @@ export interface RentRecord {
   paidDate?: string;
   status: 'paid' | 'pending' | 'overdue';
   paymentMode?: 'UPI' | 'Cash' | 'NetBanking';
+  transactionRef?: string;
 }

@@ -25,11 +25,13 @@ import {
   Select,
 } from '@/components/ui';
 import { initialMarketingPosts, initialProperties } from '@/data/mockData';
-import type { MarketingPost } from '@/types/property';
+import { propertyService } from '@/services/propertyService';
+import type { Property, MarketingPost } from '@/types/property';
 import { apiClient } from '@/services/apiClient';
 
 export function MarketingPage() {
   const [posts, setPosts] = useState<MarketingPost[]>(initialMarketingPosts);
+  const [properties, setProperties] = useState<Property[]>(initialProperties);
   const [searchQuery, setSearchQuery] = useState('');
   const [cityFilter, setCityFilter] = useState('all');
   const [landingFilter, setLandingFilter] = useState<'all' | 'live' | 'draft'>('all');
@@ -40,20 +42,52 @@ export function MarketingPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
-  // Fetch live marketing posts from backend API on mount
+  // Fetch live marketing posts and properties from backend API / local store on mount
   useEffect(() => {
-    const fetchLivePosts = async () => {
+    let isMounted = true;
+    const loadMarketingData = async () => {
       try {
-        const livePosts = await apiClient.get<MarketingPost[]>('/marketing');
-        if (Array.isArray(livePosts) && livePosts.length > 0) {
-          setPosts(livePosts);
+        const [livePosts, liveProps] = await Promise.all([
+          apiClient.get<MarketingPost[]>('/marketing').catch(() => null),
+          propertyService.getProperties().catch(() => initialProperties),
+        ]);
+
+        if (isMounted) {
+          if (liveProps && liveProps.length > 0) {
+            setProperties(liveProps);
+          }
+
+          let storedCustomPosts: MarketingPost[] = [];
+          try {
+            const raw = localStorage.getItem('hostelos_custom_marketing_posts');
+            if (raw) storedCustomPosts = JSON.parse(raw);
+          } catch {
+            // ignore
+          }
+
+          const base = Array.isArray(livePosts) && livePosts.length > 0 ? livePosts : initialMarketingPosts;
+
+          const postMap = new Map<string, MarketingPost>();
+          for (const p of storedCustomPosts) {
+            postMap.set(p.id, p);
+          }
+          for (const p of base) {
+            if (!postMap.has(p.id)) {
+              postMap.set(p.id, p);
+            }
+          }
+
+          setPosts(Array.from(postMap.values()));
         }
-      } catch {
-        // Fallback to initial 2 clean mock data records when offline
+      } catch (err) {
+        console.warn('Could not load marketing data:', err);
       }
     };
 
-    fetchLivePosts();
+    loadMarketingData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Form State for New Campaign
@@ -133,7 +167,7 @@ export function MarketingPage() {
 
   // Pre-fill when choosing property in modal
   const handlePropertySelect = (propertyId: string) => {
-    const selected = initialProperties.find((p) => p.id === propertyId);
+    const selected = properties.find((p) => p.id === propertyId);
     if (!selected) return;
     setFormData((prev) => ({
       ...prev,
@@ -146,10 +180,10 @@ export function MarketingPage() {
   // Submit New Campaign
   const handleCreateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
-    const selectedProp = initialProperties.find((p) => p.id === formData.propertyId) || initialProperties[0];
+    const selectedProp = properties.find((p) => p.id === formData.propertyId) || properties[0] || initialProperties[0];
 
     const newPost: MarketingPost = {
-      id: `MKT-0${posts.length + 1}`,
+      id: `MKT-${Date.now().toString().slice(-4)}`,
       propertyId: selectedProp.id,
       propertyName: selectedProp.name,
       city: selectedProp.city,
@@ -163,12 +197,23 @@ export function MarketingPage() {
       inquiries: 0,
       isLiveOnLandingPage: formData.isLiveOnLandingPage,
       socialLinks: {
-        whatsapp: `https://wa.me/${formData.whatsapp.replace(/[^0-9]/g, '')}?text=Hi,%20I%20am%20inquiring%20about%20${encodeURIComponent(selectedProp.name)}`,
+        whatsapp: formData.whatsapp
+          ? `https://wa.me/${formData.whatsapp.replace(/[^0-9]/g, '')}?text=Hi,%20I%20am%20inquiring%20about%20${encodeURIComponent(selectedProp.name)}`
+          : undefined,
         instagram: formData.instagram,
         facebook: formData.facebook,
       },
       createdAt: new Date().toISOString().split('T')[0],
     };
+
+    // Save to local storage for persistence across navigations
+    try {
+      const raw = localStorage.getItem('hostelos_custom_marketing_posts');
+      const current = raw ? JSON.parse(raw) : [];
+      localStorage.setItem('hostelos_custom_marketing_posts', JSON.stringify([newPost, ...current]));
+    } catch {
+      // ignore
+    }
 
     setPosts([newPost, ...posts]);
     setIsCreateModalOpen(false);
@@ -244,7 +289,15 @@ export function MarketingPage() {
 
           <Button
             variant="primary"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              if (
+                properties.length > 0 &&
+                (!formData.propertyId || !properties.some((p) => p.id === formData.propertyId))
+              ) {
+                handlePropertySelect(properties[0].id);
+              }
+              setIsCreateModalOpen(true);
+            }}
             className="flex items-center gap-1.5"
           >
             <Plus className="h-4 w-4" />
@@ -322,6 +375,20 @@ export function MarketingPage() {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* City filter */}
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="rounded-xl border border-[#E2E8F0] bg-white py-1.5 px-3 text-xs text-[#172B45] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-[#1F2E45] dark:bg-[#0E1522] dark:text-white"
+          >
+            <option value="all">All Cities</option>
+            {Array.from(new Set(properties.map((p) => p.city).filter(Boolean))).map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+
           {/* Landing page status filter */}
           <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-[#0E1522]">
             {(['all', 'live', 'draft'] as const).map((tab) => (
@@ -542,12 +609,38 @@ export function MarketingPage() {
             <Select
               value={formData.propertyId}
               onChange={(e) => handlePropertySelect(e.target.value)}
-              options={initialProperties.map((p) => ({
+              options={properties.map((p) => ({
                 value: p.id,
                 label: `${p.name} (${p.city})`,
               }))}
             />
           </FormField>
+
+          {/* Selected Property Preview Banner */}
+          {(() => {
+            const currentProp = properties.find((p) => p.id === formData.propertyId);
+            if (!currentProp) return null;
+            return (
+              <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-2.5 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+                <img
+                  src={currentProp.image}
+                  alt={currentProp.name}
+                  className="h-12 w-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#172B45] dark:text-white truncate">
+                    {currentProp.name}
+                  </p>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                    <MapPin className="h-3 w-3 shrink-0" /> {currentProp.address}, {currentProp.city}
+                  </p>
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 flex items-center gap-1">
+                    <Building2 className="h-3 w-3" /> {currentProp.totalRooms} Rooms • {currentProp.totalBeds} Beds Capacity
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
 
           <FormField label="Catchy Ad Headline" required>
             <Input

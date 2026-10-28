@@ -27,7 +27,12 @@ export function PropertyAdminLayout() {
     return 'Hostel Operations Overview';
   };
 
-  const hostelName = 'Grand Skyline Premier Hostel';
+  const hostelName =
+    user?.propertyName ||
+    (typeof user?.assignedProperties?.[0] === 'string'
+      ? user.assignedProperties[0]
+      : (user?.assignedProperties?.[0] as any)?.propertyName) ||
+    'Grand Skyline Premier Hostel';
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F4F6F9] text-[#172B45] transition-colors duration-250 dark:bg-[#0A0D14] dark:text-slate-100">

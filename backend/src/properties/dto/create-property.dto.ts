@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import { PropertyType } from '../../common/enums.js';
+import { PropertyType, PropertyStatus } from '../../common/enums.js';
 
 export class CreatePropertyDto {
   @IsString()
@@ -10,11 +10,42 @@ export class CreatePropertyDto {
   @IsEnum(PropertyType, {
     message: `Property type must be one of: ${Object.values(PropertyType).join(', ')}`,
   })
-  @IsNotEmpty({ message: 'Property type is required' })
-  propertyType: PropertyType;
+  @IsOptional()
+  propertyType?: PropertyType;
 
   @IsString()
-  @IsNotEmpty({ message: 'Address is required' })
   @IsOptional()
   address?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  image?: string;
+
+  @IsString()
+  @IsOptional()
+  ownerName?: string;
+
+  @IsString()
+  @IsOptional()
+  ownerPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  ownerEmail?: string;
+
+  @IsOptional()
+  totalRooms?: number;
+
+  @IsOptional()
+  totalBeds?: number;
+
+  @IsOptional()
+  portalPassword?: string;
+
+  @IsOptional()
+  status?: PropertyStatus | 'active' | 'inactive';
 }
