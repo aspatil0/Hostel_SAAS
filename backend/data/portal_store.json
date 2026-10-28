@@ -1,0 +1,161 @@
+{
+  "students": [
+    {
+      "id": "STU-01",
+      "name": "Aarav Mehta",
+      "phone": "+91 98111 22334",
+      "email": "aarav.mehta@gmail.com",
+      "guardianName": "Sanjay Mehta",
+      "guardianPhone": "+91 98111 99887",
+      "collegeOrCompany": "IIT Bombay (CSE)",
+      "roomNumber": "101",
+      "bedNumber": "Bed A",
+      "monthlyRent": 12500,
+      "depositAmount": 25000,
+      "checkInDate": "2026-07-15",
+      "status": "active",
+      "idProofNumber": "Aadhar Verified (XXXX-8921)",
+      "propertyId": 1
+    },
+    {
+      "id": "STU-02",
+      "name": "Rohan Deshmukh",
+      "phone": "+91 98222 33445",
+      "email": "rohan.deshmukh@gmail.com",
+      "guardianName": "Prakash Deshmukh",
+      "guardianPhone": "+91 98222 88776",
+      "collegeOrCompany": "VJTI Mumbai (IT)",
+      "roomNumber": "102",
+      "bedNumber": "Bed A",
+      "monthlyRent": 14000,
+      "depositAmount": 28000,
+      "checkInDate": "2026-08-01",
+      "status": "active",
+      "idProofNumber": "Passport Verified (PXXXX902)",
+      "propertyId": 1
+    }
+  ],
+  "rentRecords": [
+    {
+      "id": "RENT-2026-10-01",
+      "studentId": "STU-01",
+      "studentName": "Aarav Mehta",
+      "roomNumber": "101",
+      "month": "October 2026",
+      "amount": 12500,
+      "paidAmount": 12500,
+      "dueDate": "2026-10-05",
+      "paidDate": "2026-10-03",
+      "status": "paid",
+      "paymentMode": "UPI",
+      "transactionRef": "UPI-AXIS-982341204",
+      "propertyId": 1
+    },
+    {
+      "id": "RENT-2026-10-02",
+      "studentId": "STU-02",
+      "studentName": "Rohan Deshmukh",
+      "roomNumber": "102",
+      "month": "October 2026",
+      "amount": 14000,
+      "paidAmount": 0,
+      "dueDate": "2026-10-05",
+      "status": "pending",
+      "propertyId": 1
+    }
+  ],
+  "rooms": [
+    {
+      "roomNumber": "101",
+      "floor": 1,
+      "wing": "East",
+      "type": "Double Sharing AC",
+      "price": 12500,
+      "propertyId": 1,
+      "beds": [
+        {
+          "bedId": "101-A",
+          "bedName": "Bed A",
+          "status": "occupied",
+          "student": {
+            "name": "Aarav Mehta",
+            "phone": "+91 98111 22334",
+            "college": "IIT Bombay (CSE)",
+            "checkInDate": "2026-07-15",
+            "rent": 12500
+          }
+        },
+        {
+          "bedId": "101-B",
+          "bedName": "Bed B",
+          "status": "vacant"
+        }
+      ]
+    },
+    {
+      "roomNumber": "102",
+      "floor": 1,
+      "wing": "East",
+      "type": "Double Sharing AC",
+      "price": 14000,
+      "propertyId": 1,
+      "beds": [
+        {
+          "bedId": "102-A",
+          "bedName": "Bed A",
+          "status": "occupied",
+          "student": {
+            "name": "Rohan Deshmukh",
+            "phone": "+91 98222 33445",
+            "college": "VJTI Mumbai (IT)",
+            "checkInDate": "2026-08-01",
+            "rent": 14000
+          }
+        },
+        {
+          "bedId": "102-B",
+          "bedName": "Bed B",
+          "status": "vacant"
+        }
+      ]
+    }
+  ],
+  "profileStore": {
+    "1": {
+      "hostelData": {
+        "name": "Grand Skyline Premier Hostel",
+        "tagline": "Premium Student & Executive PG Accommodation",
+        "address": "Opp. University North Gate, Powai Road",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400076",
+        "contactPhone": "+91 98201 12345",
+        "contactEmail": "contact@grandskyline.com",
+        "totalRooms": 45,
+        "totalBeds": 120,
+        "curfewTime": "10:30 PM",
+        "messBreakfast": "07:30 AM - 09:30 AM",
+        "messDinner": "08:00 PM - 10:00 PM"
+      },
+      "managerData": {
+        "name": "Rahul Sharma",
+        "role": "Authorized Property Manager",
+        "phone": "+91 98201 12345",
+        "email": "rahul.sharma@skylinehostels.com",
+        "emergencyPhone": "+91 98201 00999"
+      },
+      "amenities": {
+        "wifi": true,
+        "meals": true,
+        "roWater": true,
+        "biometric": true,
+        "ac": true,
+        "powerBackup": true,
+        "housekeeping": true,
+        "cctv": true,
+        "laundry": true,
+        "studyRoom": true
+      }
+    }
+  }
+}

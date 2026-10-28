@@ -9,7 +9,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { Role, PropertyStatus } from '@prisma/client';
+import { Role, PropertyStatus } from '../common/enums.js';
 import { PropertiesService } from './properties.service.js';
 import { CreatePropertyDto } from './dto/create-property.dto.js';
 import { UpdatePropertyDto } from './dto/update-property.dto.js';
@@ -34,6 +34,12 @@ export class PropertiesController {
   @Roles(Role.SUPER_ADMIN)
   create(@Body() dto: CreatePropertyDto) {
     return this.propertiesService.create(dto);
+  }
+
+  @Get('stats/summary')
+  @Roles(Role.SUPER_ADMIN)
+  getStatsSummary() {
+    return this.propertiesService.getStatsSummary();
   }
 
   @Get()

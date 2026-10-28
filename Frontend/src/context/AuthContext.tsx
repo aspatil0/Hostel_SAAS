@@ -1,61 +1,63 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import type { User, LoginCredential, AuthContextType } from "../types/auth";
-
+import { authService } from "../services/authService";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
- 
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem("token");
-      const storedUser = localStorage.getItem("user");
+    async function restoreSession() {
+      try {
+        const storedToken = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser) as User);
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser) as User);
+
+          // Refresh live profile in background if backend is online
+          try {
+            const liveUser = await authService.getMe();
+            if (liveUser) {
+              setUser(liveUser);
+            }
+          } catch {
+            // Keep cached user if offline
+          }
+        }
+      } catch (error) {
+        console.error("Failed to restore authentication session:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to restore authentication session:", error);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-    } finally {
-      setIsLoading(false);
     }
+
+    restoreSession();
   }, []);
 
   const login = async (credentials: LoginCredential): Promise<void> => {
-
-    const mockToken = "mock-auth-token-xyz";
-    const mockUser: User = {
-      _id: "usr_001",
-      name: "Demo Admin",
-      email: credentials.email,
-      role: "SUPER_ADMIN",
-      status: "active",
-    };
-
-    setToken(mockToken);
-    setUser(mockUser);
-
-    localStorage.setItem("token", mockToken);
-    localStorage.setItem("user", JSON.stringify(mockUser));
+    setIsLoading(true);
+    try {
+      const response = await authService.login(credentials);
+      setToken(response.token);
+      setUser(response.user);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-
-  const logout = () => {
+  const logout = async () => {
+    await authService.logout();
     setToken(null);
     setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
   };
 
-  
   const isAuthenticated = Boolean(token && user);
 
   return (
@@ -73,7 +75,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);

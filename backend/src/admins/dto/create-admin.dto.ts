@@ -1,13 +1,13 @@
 import {
   IsEmail,
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
+  IsNumber,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateAdminDto {
   @IsString()
@@ -21,11 +21,54 @@ export class CreateAdminDto {
   email: string;
 
   @IsString()
-  @IsNotEmpty({ message: 'Password is required' })
+  @IsOptional()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
-  password: string;
+  password?: string;
 
-  @IsInt({ message: 'Property ID must be an integer' })
-  @IsNotEmpty({ message: 'Property ID is required' })
-  propertyId: number;
+  @IsOptional()
+  @IsString()
+  portalPassword?: string;
+
+  // Accept integer number or formatted string like 'PROP-01' or '1'
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      const parsed = parseInt(value.replace(/\D/g, ''), 10);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    return typeof value === 'number' ? value : undefined;
+  })
+  propertyId?: number;
+
+  @IsOptional()
+  @IsString()
+  propertyName?: string;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @IsString()
+  @IsOptional()
+  image?: string;
+
+  @IsOptional()
+  totalRooms?: number;
+
+  @IsOptional()
+  totalBeds?: number;
+
+  @IsOptional()
+  occupiedBeds?: number;
+
+  @IsOptional()
+  status?: string;
 }

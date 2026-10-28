@@ -6,6 +6,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { PropertiesModule } from './properties/properties.module.js';
 import { AdminsModule } from './admins/admins.module.js';
+import { MarketingModule } from './marketing/marketing.module.js';
+import { PropertyPortalModule } from './property-portal/property-portal.module.js';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { AdminsModule } from './admins/admins.module.js';
     AuthModule,
     PropertiesModule,
     AdminsModule,
+    MarketingModule,
+    PropertyPortalModule,
   ],
   controllers: [AppController],
   providers: [AppService],
