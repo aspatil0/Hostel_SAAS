@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   SUPER_ADMIN
   PROPERTY_ADMIN
+  STUDENT
 }
 
 enum UserStatus {
@@ -21,6 +22,32 @@ enum PropertyStatus {
   ACTIVE
   INACTIVE
 }
+
+enum StudentStatus {
+  ACTIVE 
+  INACTIVE 
+  CHECKED_OUT
+}
+
+enum InvoiceSatus {
+  UNPAID 
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum FeeCategory{
+  RENT 
+  MESS
+  ELECTRICITY
+  MAINTENANCE
+  LAUNDRY 
+  DEPOSIT 
+  OTHER 
+}
+
+
 
 enum PropertyType {
   PG
@@ -100,3 +127,22 @@ model MarketingPost {
   @@index([propertyId])
   @@map("marketing_posts")
 }
+
+model Student{
+  id                  Int      @id @default(autoincrement())
+  studentCode         String   @unique @map("student_code") @db.VarChar(50) 
+  userId              Int      @unique @map("user_id")
+  propertyId          Int      @map("property_id")
+  phone               String   @db.VarChar(20)
+  guardianName        String   @map("guardian_name") @db.VarChar(255)
+  guardianPhone       String   @map("guardian_phone") @db.VarChar(20)
+  collegeOrCompany    String?  @map("college_or_company") @db.VarChar(255)
+  idProofNumber       String?  @map("id_proof_number") @db.VarChar(100)
+  roomNumber          String   @map("room_number") @db.VarChar(50)
+  bedNumber           String   @map("bed_number")  @db.VarChar(50)
+  
+
+
+
+}
+

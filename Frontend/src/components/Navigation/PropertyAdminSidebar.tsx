@@ -180,7 +180,7 @@ export function PropertyAdminSidebar({
             </div>
           ) : (
             <div className="flex justify-center">
-              <ThemeToggle variant="dropdown" />
+              <ThemeToggle variant="icon" />
             </div>
           )}
         </div>

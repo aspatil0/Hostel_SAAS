@@ -37,6 +37,21 @@
   ],
   "rentRecords": [
     {
+      "id": "RENT-234710",
+      "studentId": "STU-101",
+      "studentName": "Resident",
+      "roomNumber": "101",
+      "month": "October 2026",
+      "amount": 12500,
+      "paidAmount": 12500,
+      "dueDate": "2026-10-28",
+      "paidDate": "2026-10-28",
+      "status": "paid",
+      "paymentMode": "UPI",
+      "transactionRef": "TXN-234691",
+      "propertyId": 1
+    },
+    {
       "id": "RENT-2026-10-01",
       "studentId": "STU-01",
       "studentName": "Aarav Mehta",

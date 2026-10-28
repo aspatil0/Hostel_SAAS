@@ -22,7 +22,6 @@ import {
   Upload,
   KeyRound,
   Copy,
-  Lock,
 } from 'lucide-react';
 import {
   Button,
@@ -36,10 +35,12 @@ import {
 } from '@/components/ui';
 import { initialPropertyAdmins, initialProperties } from '@/data/mockData';
 import { adminService } from '@/services/adminService';
-import type { PropertyAdmin } from '@/types/property';
+import { propertyService } from '@/services/propertyService';
+import type { Property, PropertyAdmin } from '@/types/property';
 
 export function PropertyAdminsPage() {
   const [admins, setAdmins] = useState<PropertyAdmin[]>(initialPropertyAdmins);
+  const [properties, setProperties] = useState<Property[]>(initialProperties);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
@@ -69,22 +70,28 @@ export function PropertyAdminsPage() {
     status: 'active' as 'active' | 'inactive',
   });
 
-  // Load admins from backend with fallback
+  // Load admins and properties from backend with fallback
   useEffect(() => {
     let isMounted = true;
-    async function loadAdmins() {
+    async function loadData() {
       setIsLoading(true);
       try {
-        const data = await adminService.getAdmins(searchQuery, statusFilter);
-        if (isMounted) setAdmins(data);
+        const [adminsData, propsData] = await Promise.all([
+          adminService.getAdmins(searchQuery, statusFilter),
+          propertyService.getProperties(),
+        ]);
+        if (isMounted) {
+          setAdmins(adminsData);
+          setProperties(propsData);
+        }
       } catch (err) {
-        console.warn('Could not fetch admins from backend:', err);
+        console.warn('Could not fetch data from backend:', err);
       } finally {
         if (isMounted) setIsLoading(false);
       }
     }
 
-    loadAdmins();
+    loadData();
     return () => {
       isMounted = false;
     };
@@ -167,17 +174,18 @@ export function PropertyAdminsPage() {
     setEditingAdmin(null);
     setShowPassword(false);
     const initialPass = `Hostel@${Math.floor(1000 + Math.random() * 9000)}`;
+    const firstProp = properties[0];
     setFormData({
-      propertyName: '',
+      propertyName: firstProp?.name || '',
       ownerName: '',
       phone: '',
       email: '',
-      address: '',
-      city: 'Mumbai',
-      image: imagePresets[0].url,
-      totalRooms: 30,
-      totalBeds: 80,
-      occupiedBeds: 68,
+      address: firstProp?.address || '',
+      city: firstProp?.city || 'Mumbai',
+      image: firstProp?.image || imagePresets[0].url,
+      totalRooms: firstProp?.totalRooms || 30,
+      totalBeds: firstProp?.totalBeds || 80,
+      occupiedBeds: firstProp?.occupiedBeds ?? 0,
       portalPassword: initialPass,
       status: 'active',
     });
@@ -265,12 +273,35 @@ export function PropertyAdminsPage() {
       setAdmins([newAdmin, ...admins]);
     }
 
+    // Synchronize the assigned property in propertyService so Properties Page immediately reflects this manager
+    const matchedProp = properties.find(
+      (p) => p.name.toLowerCase().trim() === formData.propertyName.toLowerCase().trim()
+    );
+    if (matchedProp) {
+      try {
+        await propertyService.updateProperty(matchedProp.id, {
+          ownerName: formData.ownerName,
+          ownerPhone: formData.phone,
+          ownerEmail: formData.email,
+        });
+      } catch {
+        // handled
+      }
+      setProperties((prev) =>
+        prev.map((p) =>
+          p.id === matchedProp.id
+            ? { ...p, ownerName: formData.ownerName, ownerPhone: formData.phone, ownerEmail: formData.email }
+            : p
+        )
+      );
+    }
+
     setIsModalOpen(false);
   };
 
   // Pre-fill property details if user chooses an existing property from dropdown
   const handleSelectExistingProperty = (propName: string) => {
-    const existing = initialProperties.find((p) => p.name === propName);
+    const existing = properties.find((p) => p.name === propName);
     if (existing) {
       setFormData((prev) => ({
         ...prev,
@@ -280,6 +311,7 @@ export function PropertyAdminsPage() {
         image: existing.image,
         totalRooms: existing.totalRooms,
         totalBeds: existing.totalBeds,
+        occupiedBeds: existing.occupiedBeds ?? 0,
       }));
     } else {
       setFormData((prev) => ({
@@ -716,10 +748,10 @@ export function PropertyAdminsPage() {
         title={
           editingAdmin
             ? 'Edit Property Administrator'
-            : 'Register New Property Administrator'
+            : 'Assign Property Administrator'
         }
-        description="Configure hostel administration, physical location, live room & bed capacity, and student showcase banner."
-        size="xl"
+        description="Select an assigned hostel property and configure manager profile & portal credentials."
+        size="lg"
         footer={
           <>
             <Button
@@ -730,90 +762,69 @@ export function PropertyAdminsPage() {
               Cancel
             </Button>
             <Button variant="primary" type="button" onClick={handleSubmitForm}>
-              {editingAdmin ? 'Save Changes' : 'Create Administrator'}
+              {editingAdmin ? 'Save Changes' : 'Create & Assign Administrator'}
             </Button>
           </>
         }
       >
         <form onSubmit={handleSubmitForm} className="space-y-4">
-          {/* Quick Pre-fill from existing property if registering */}
-          {!editingAdmin && (
-            <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-3 dark:border-indigo-900/60 dark:bg-indigo-950/40">
-              <label className="block text-xs font-semibold text-indigo-950 dark:text-indigo-200 mb-1">
-                Link to Existing Property (Optional shortcut)
+          {/* Section 1: Assigned Property Selection */}
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                <Building2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                Assigned Hostel / Property <span className="text-rose-500">*</span>
               </label>
-              <select
-                onChange={(e) => handleSelectExistingProperty(e.target.value)}
-                defaultValue=""
-                className="w-full rounded-lg border border-indigo-200 bg-white py-1.5 px-3 text-xs text-[#172B45] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-indigo-800 dark:bg-[#0F172A] dark:text-white"
-              >
-                <option value="">-- Choose existing property or type new below --</option>
-                {initialProperties.map((p) => (
-                  <option key={p.id} value={p.name}>
-                    {p.name} ({p.city})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Section: Property Info */}
-          <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-3">
-              <Building2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              Property Information
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Field 1: Property Name */}
-              <FormField label="Property Name" required>
-                <Input
-                  placeholder="e.g. Grand Skyline Premier Hostel"
-                  value={formData.propertyName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, propertyName: e.target.value })
-                  }
-                  required
-                />
-              </FormField>
-
-              {/* City Selection (Manual Typing) */}
-              <FormField label="City / Region" required>
-                <Input
-                  placeholder="e.g. Pune, Maharashtra"
-                  value={formData.city}
-                  onChange={(e) =>
-                    setFormData({ ...formData, city: e.target.value })
-                  }
-                  required
-                />
-              </FormField>
+              <span className="text-[10px] text-[#64748B] dark:text-slate-400">
+                Created in Properties Page
+              </span>
             </div>
 
-            {/* Field 5: Property Address */}
-            <div className="mt-3">
-              <FormField label="Property Address" hint="Full physical address shown to students" required>
-                <Input
-                  placeholder="e.g. Opp. University North Gate, Powai Road"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  required
+            <select
+              value={formData.propertyName}
+              onChange={(e) => handleSelectExistingProperty(e.target.value)}
+              className="w-full rounded-lg border border-indigo-200 bg-white py-2 px-3 text-xs text-[#172B45] focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-indigo-800 dark:bg-[#0F172A] dark:text-white"
+              required
+            >
+              <option value="">-- Choose Property to Assign --</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name} ({p.city})
+                </option>
+              ))}
+            </select>
+
+            {/* Selected Property Preview Banner */}
+            {formData.propertyName && (
+              <div className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-3 dark:border-indigo-900/50 dark:bg-[#0F172A]">
+                <img
+                  src={formData.image}
+                  alt={formData.propertyName}
+                  className="h-12 w-16 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
                 />
-              </FormField>
-            </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-[#172B45] dark:text-white truncate">
+                    {formData.propertyName}
+                  </p>
+                  <p className="text-[11px] text-[#64748B] dark:text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                    <MapPin className="h-3 w-3 shrink-0" /> {formData.address || 'Address on file'}, {formData.city}
+                  </p>
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 flex items-center gap-1">
+                    <BedDouble className="h-3 w-3" /> {formData.totalRooms} Rooms • {formData.totalBeds} Beds Capacity
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Section: Property Owner / Admin Contact */}
+          {/* Section 2: Administrator Personal & Contact Details */}
           <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-3">
               <UserCheck className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               Administrator Details
             </h4>
 
-            {/* Field 2: Property Owner Name */}
-            <FormField label="Property Owner / Admin Name" required>
+            <FormField label="Administrator / Manager Full Name" required>
               <Input
                 placeholder="e.g. Rahul Sharma"
                 value={formData.ownerName}
@@ -825,7 +836,6 @@ export function PropertyAdminsPage() {
             </FormField>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
-              {/* Field 3: Mobile Number */}
               <FormField label="Mobile Number" required>
                 <Input
                   type="tel"
@@ -838,8 +848,7 @@ export function PropertyAdminsPage() {
                 />
               </FormField>
 
-              {/* Field 4: Email Address */}
-              <FormField label="Email Address" required>
+              <FormField label="Email Address (Login Username)" required>
                 <Input
                   type="email"
                   placeholder="admin@skylinehostels.com"
@@ -851,238 +860,112 @@ export function PropertyAdminsPage() {
                 />
               </FormField>
             </div>
+          </div>
 
-            {/* Field: Portal Access & Password Provisioning */}
-            <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
-                  <KeyRound className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  Portal Access & Login Credentials
-                </span>
-                <span className="text-[10px] font-semibold rounded bg-indigo-100 px-2 py-0.5 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
-                  Role: Property Admin
-                </span>
+          {/* Section 3: Portal Access & Credentials */}
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3 dark:border-indigo-900/40 dark:bg-indigo-950/20">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                <KeyRound className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                Portal Access & Login Credentials
+              </span>
+              <span className="text-[10px] font-semibold rounded bg-indigo-100 px-2 py-0.5 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                Role: Property Admin
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#64748B] dark:text-slate-400 mb-1">
+                  Portal Login Username
+                </label>
+                <div className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs font-mono text-[#172B45] dark:border-[#1F2E45] dark:bg-[#0E1522] dark:text-white truncate">
+                  {formData.email || 'Enter email above to generate username'}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#64748B] dark:text-slate-400 mb-1">
-                    Portal Login Username
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-[#64748B] dark:text-slate-400">
+                    Assigned Portal Password
                   </label>
-                  <div className="rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-xs font-mono text-[#172B45] dark:border-[#1F2E45] dark:bg-[#0E1522] dark:text-white truncate">
-                    {formData.email || 'Enter email above to generate username'}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-semibold text-[#64748B] dark:text-slate-400">
-                      Assigned Portal Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleGeneratePassword}
-                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 cursor-pointer"
-                    >
-                      <Sparkles className="h-3 w-3" /> Auto-Generate
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.portalPassword}
-                      onChange={(e) =>
-                        setFormData({ ...formData, portalPassword: e.target.value })
-                      }
-                      placeholder="e.g. Skyline@2026"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-[#172B45] dark:hover:text-white cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <p className="text-[10px] text-[#64748B] dark:text-slate-400">
-                  Credentials allow the administrator to log into their dedicated Property Admin workspace.
-                </p>
-                {formData.email && (
                   <button
                     type="button"
-                    onClick={() =>
-                      handleCopyCredentials(
-                        formData.email,
-                        formData.portalPassword,
-                        formData.propertyName || 'Hostel'
-                      )
-                    }
-                    className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 cursor-pointer"
+                    onClick={handleGeneratePassword}
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 cursor-pointer"
                   >
-                    {copiedCredentials ? (
-                      <>
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                        <span className="text-emerald-600">Copied to Clipboard!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-3.5 w-3.5" />
-                        <span>Copy Login Credentials</span>
-                      </>
-                    )}
+                    <Sparkles className="h-3 w-3" /> Auto-Generate
                   </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Field 6: Property Image with Device Upload & Presets */}
-          <div className="border-b border-[#E2E8F0] pb-3 dark:border-[#1F2E45]">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#142D4E] dark:text-indigo-400 flex items-center gap-1.5 mb-2">
-              <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              Property Display Image
-            </h4>
-            <p className="text-[11px] text-[#64748B] dark:text-slate-400 mb-2">
-              Banner image showcased to students, parents, and prospective residents on mobile & web.
-            </p>
-
-            <FormField label="Property Image" hint="Paste an image URL or upload directly from your device" required>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
+                </div>
+                <div className="relative">
                   <Input
-                    placeholder="Paste image URL or upload from device →"
-                    value={formData.image}
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.portalPassword}
                     onChange={(e) =>
-                      setFormData({ ...formData, image: e.target.value })
+                      setFormData({ ...formData, portalPassword: e.target.value })
                     }
+                    placeholder="e.g. Skyline@2026"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-[#172B45] dark:hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
-                <label
-                  htmlFor="admin-property-file-upload"
-                  className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg border border-[#E2E8F0] bg-white text-[#172B45] hover:bg-slate-50 cursor-pointer transition-colors dark:border-[#1F2E45] dark:bg-[#121824] dark:text-white shrink-0"
-                >
-                  <Upload className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  <span>Upload File</span>
-                  <input
-                    id="admin-property-file-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageFileUpload}
-                  />
-                </label>
               </div>
-            </FormField>
-
-            {/* Quick Presets */}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold text-[#64748B] dark:text-slate-400">Presets:</span>
-              {imagePresets.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, image: preset.url })}
-                  className={`rounded-lg px-2.5 py-1 text-xs border transition-all cursor-pointer ${
-                    formData.image === preset.url
-                      ? 'border-indigo-600 bg-indigo-50 font-semibold text-indigo-700 dark:border-indigo-400 dark:bg-indigo-950/60 dark:text-indigo-300'
-                      : 'border-[#E2E8F0] bg-white text-[#64748B] hover:bg-slate-50 dark:border-[#1F2E45] dark:bg-[#121824] dark:text-slate-300 dark:hover:bg-[#1A2536]'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
             </div>
 
-            {/* Live Student Card Preview */}
-            {formData.image && (
-              <div className="mt-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1 flex items-center gap-1">
-                  <Eye className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
-                  Student & Public Preview Card
-                </p>
-                <div className="relative h-32 w-full overflow-hidden rounded-xl border border-[#E2E8F0] bg-slate-100 dark:border-[#1F2E45] dark:bg-slate-800">
-                  <img
-                    src={formData.image}
-                    alt="Preview"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                  <div className="absolute bottom-2 left-3 right-3 text-white">
-                    <p className="text-xs font-bold leading-tight drop-shadow-sm">
-                      {formData.propertyName || 'Property Name Preview'}
-                    </p>
-                    <p className="text-[10px] text-slate-200 truncate">
-                      {formData.address || 'Address preview shown to students'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[10px] text-[#64748B] dark:text-slate-400">
+                Credentials allow the administrator to log into their dedicated Property Admin workspace.
+              </p>
+              {formData.email && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleCopyCredentials(
+                      formData.email,
+                      formData.portalPassword,
+                      formData.propertyName || 'Hostel'
+                    )
+                  }
+                  className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 cursor-pointer"
+                >
+                  {copiedCredentials ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-emerald-600">Copied to Clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>Copy Login Credentials</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Section: Capacity, Live Student Occupancy & Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <FormField label="Total Rooms" required>
-              <Input
-                type="number"
-                min="1"
-                placeholder="30"
-                value={formData.totalRooms}
-                onChange={(e) =>
-                  setFormData({ ...formData, totalRooms: Number(e.target.value) })
-                }
-                required
-              />
-            </FormField>
-
-            <FormField label="Total Beds" required>
-              <Input
-                type="number"
-                min="1"
-                placeholder="80"
-                value={formData.totalBeds}
-                onChange={(e) =>
-                  setFormData({ ...formData, totalBeds: Number(e.target.value) })
-                }
-                required
-              />
-            </FormField>
-
-            <FormField label="Occupied Beds (Students)">
-              <Input
-                type="number"
-                min="0"
-                max={formData.totalBeds}
-                placeholder="68"
-                value={formData.occupiedBeds ?? ''}
-                onChange={(e) =>
-                  setFormData({ ...formData, occupiedBeds: Number(e.target.value) })
-                }
-              />
-            </FormField>
-
-            <FormField label="Account Status" required>
-              <Select
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    status: e.target.value as 'active' | 'inactive',
-                  })
-                }
-                options={[
-                  { value: 'active', label: 'Active (Operational)' },
-                  { value: 'inactive', label: 'Inactive (Suspended)' },
-                ]}
-              />
-            </FormField>
-          </div>
+          {/* Section 4: Account Operational Status */}
+          <FormField label="Account Status" required>
+            <Select
+              value={formData.status}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  status: e.target.value as 'active' | 'inactive',
+                })
+              }
+              options={[
+                { value: 'active', label: 'Active (Operational)' },
+                { value: 'inactive', label: 'Inactive (Suspended)' },
+              ]}
+            />
+          </FormField>
         </form>
       </Modal>
 
