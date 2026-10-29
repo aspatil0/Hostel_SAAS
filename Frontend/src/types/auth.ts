@@ -1,4 +1,4 @@
-export type UserRole='SUPER_ADMIN' | 'PROPERTY_ADMIN';
+export type UserRole = 'SUPER_ADMIN' | 'PROPERTY_ADMIN' | 'STUDENT';
 
 export interface User {
   _id: string;
@@ -8,6 +8,9 @@ export interface User {
   status: 'active' | 'inactive';
   propertyName?: string;
   assignedProperties?: string[];
+  studentCode?: string;
+  roomNumber?: string;
+  bedNumber?: string;
 }
 
 export interface ApiResponse<T> {

@@ -1,15 +1,44 @@
 import { Link } from "react-router-dom";
-import { ShieldCheck, Building2, ArrowRight, Sparkles, KeyRound } from "lucide-react";
+import { ShieldCheck, Building2, GraduationCap, ArrowRight } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
 
 export function LoginPage() {
   return (
     <AuthLayout
       title="HostelOS Sign-In Gateway"
-      subtitle="Please select your dedicated administrative portal to continue."
+      subtitle="Please select your dedicated portal to continue."
     >
       <div className="space-y-4">
-        {/* 1. Property Admin Entrance Card */}
+        {/* 1. Student Resident Portal Entrance */}
+        <Link
+          to="/student/login"
+          className="group block rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-blue-50/80 hover:shadow-lg hover:shadow-blue-500/10 dark:border-blue-900/40 dark:bg-blue-950/20 dark:hover:border-blue-500/80"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+              Students & Residents
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-400">
+              Student Resident Portal
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              View your room allotment, check fee invoices, pay dues via demo payment, request leave passes, and submit maintenance tickets.
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+            <span>Proceed to Student Login</span>
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </div>
+        </Link>
+
+        {/* 2. Property Admin Entrance Card */}
         <Link
           to="/property-admin/login"
           className="group block rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/40 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500 hover:bg-emerald-50/80 hover:shadow-lg hover:shadow-emerald-500/10 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:hover:border-emerald-500/80"
@@ -38,7 +67,7 @@ export function LoginPage() {
           </div>
         </Link>
 
-        {/* 2. Super Admin Entrance Card */}
+        {/* 3. Super Admin Entrance Card */}
         <Link
           to="/admin/login"
           className="group block rounded-2xl border-2 border-indigo-500/30 bg-indigo-50/40 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-600 hover:bg-indigo-50/80 hover:shadow-lg hover:shadow-indigo-500/10 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:hover:border-indigo-500/80"
