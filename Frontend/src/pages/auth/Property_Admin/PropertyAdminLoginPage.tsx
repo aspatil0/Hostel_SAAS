@@ -7,15 +7,11 @@ import {
   EyeOff,
   Loader2,
   AlertCircle,
-  Building2,
-  KeyRound,
   ArrowRight,
   ShieldCheck,
-  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { AuthLayout } from "../AuthLayout";
-import { PROPERTY_ADMIN_CREDENTIALS } from "@/services/authService";
 
 export function PropertyAdminLoginPage() {
   const { login } = useAuth();
@@ -78,7 +74,7 @@ export function PropertyAdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="manager@grandskyline.com"
+              placeholder="manager@skylinehostels.com"
               autoComplete="email"
               className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />

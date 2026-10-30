@@ -17,6 +17,7 @@ import {
   Sparkles,
   Loader2,
   Upload,
+  Trash2,
 } from 'lucide-react';
 import {
   Button,
@@ -143,6 +144,16 @@ export function PropertiesPage() {
     setProperties((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: nextStatus } : p))
     );
+  };
+
+  const handleDeleteProperty = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this property?')) return;
+    try {
+      await propertyService.deleteProperty(id);
+    } catch {
+      // offline fallback
+    }
+    setProperties((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handleSubmitForm = async (e: FormEvent) => {
@@ -330,6 +341,15 @@ export function PropertiesPage() {
             title="Edit Property"
           >
             <Edit2 className="h-4 w-4 text-slate-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDeleteProperty(p.id)}
+            title="Delete Property"
+            className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -557,6 +577,14 @@ export function PropertiesPage() {
                           title="Edit Property"
                         >
                           <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteProperty(prop.id)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors dark:hover:bg-rose-950/40 dark:hover:text-rose-400 cursor-pointer"
+                          title="Delete Property"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </button>
                         <button
                           type="button"

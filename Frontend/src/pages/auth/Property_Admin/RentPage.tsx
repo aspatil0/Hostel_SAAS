@@ -22,7 +22,52 @@ export function RentPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
   const [selectedMonth, setSelectedMonth] = useState('October 2026');
+  // Invoice Creation Modal State
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({
+    studentId: initialStudents[0]?.id || '',
+    category: 'RENT',
+    title: 'Monthly Rent',
+    amount: 5000,
+    dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  });
 
+  const handleCreateInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Find selected student for DB id or code
+      const student = initialStudents.find((s) => s.id === invoiceForm.studentId) || initialStudents[0];
+      const numericId = (student as any).dbId || 1;
+
+      await propertyPortalService.createInvoice({
+        studentId: numericId,
+        title: invoiceForm.title,
+        category: invoiceForm.category,
+        amount: Number(invoiceForm.amount),
+        dueDate: invoiceForm.dueDate,
+      });
+
+      // Also create local RentRecord entry so it immediately appears in the table
+      const newInvoiceRecord: RentRecord = {
+        id: `INV-${Date.now().toString().slice(-4)}`,
+        studentId: student.id,
+        studentName: student.name,
+        roomNumber: student.roomNumber,
+        month: invoiceForm.title,
+        amount: Number(invoiceForm.amount),
+        paidAmount: 0,
+        dueDate: invoiceForm.dueDate,
+        status: 'pending',
+      };
+
+      setRecords([newInvoiceRecord, ...records]);
+      setIsInvoiceModalOpen(false);
+      setReceiptSuccess(`Invoice of ₹${Number(invoiceForm.amount).toLocaleString('en-IN')} generated successfully for ${student.name}.`);
+      setTimeout(() => setReceiptSuccess(null), 4000);
+    } catch (err: any) {
+      alert(`Failed to generate invoice: ${err.message || 'Error'}`);
+    }
+  };
   // Modals
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<RentRecord | null>(null);
@@ -158,6 +203,10 @@ export function RentPage() {
           >
             <Plus className="h-4 w-4" />
             Record Payment
+          </button>
+          <button type='button' onClick={()=>setIsInvoiceModalOpen(true)}
+          className='flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700 active:scale-95 cursor-pointer'><Receipt className='h-4 w-4'/>
+          Generate Invoice
           </button>
         </div>
       </div>
@@ -466,7 +515,123 @@ export function RentPage() {
           </div>
         </div>
       )}
+      
+            {/* 5. Generate Invoice Modal */}
+      {isInvoiceModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#121824]">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-blue-600" />
+                <h3 className="font-bold text-slate-800 dark:text-white">Generate Student Invoice</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsInvoiceModalOpen(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
+            <form onSubmit={handleCreateInvoice} className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Select Resident / Student
+                </label>
+                <select
+                  value={invoiceForm.studentId}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, studentId: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  {initialStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.id} - Room {s.roomNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Fee Category
+                </label>
+                <select
+                  value={invoiceForm.category}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, category: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                >
+                  <option value="RENT">Hostel Rent</option>
+                  <option value="MESS">Mess / Food Fee</option>
+                  <option value="ELECTRICITY">Electricity Charges</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                  <option value="LAUNDRY">Laundry</option>
+                  <option value="DEPOSIT">Security Deposit</option>
+                  <option value="OTHER">Other Charges</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Invoice Title / Description
+                </label>
+                <input
+                  type="text"
+                  value={invoiceForm.title}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, title: e.target.value })}
+                  placeholder="e.g. Mess Fee - November 2026"
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={invoiceForm.amount}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: Number(e.target.value) })}
+                    required
+                    min="1"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    value={invoiceForm.dueDate}
+                    onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
+                    required
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 focus:border-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsInvoiceModalOpen(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 cursor-pointer"
+                >
+                  Generate & Send
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* 6. Invoice / Receipt View Modal */}
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">

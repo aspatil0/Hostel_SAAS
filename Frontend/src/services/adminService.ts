@@ -3,6 +3,42 @@ import { initialPropertyAdmins } from '../data/mockData';
 import type { PropertyAdmin } from '../types/property';
 import { CUSTOM_ADMINS_KEY, getStoredCustomProperties, saveStoredCustomProperty } from './propertyService';
 
+export const DELETED_ADMINS_KEY = 'hostelos_deleted_admins';
+
+const REMOVED_PROPERTIES = [
+  'greenwood heights co-living & pg',
+  'heritage residency boys hostel',
+  'elite scholars executive hostel',
+];
+
+const REMOVED_ADMIN_EMAILS = [
+  'sneha.patil@greenwoodpg.in',
+  'amit.verma@heritageresidency.com',
+  'priya.k@elitescholars.edu',
+];
+
+export function getDeletedAdminIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DELETED_ADMINS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function addDeletedAdminId(id: string | number) {
+  try {
+    const current = getDeletedAdminIds();
+    const strId = String(id).toLowerCase();
+    if (!current.includes(strId)) {
+      localStorage.setItem(DELETED_ADMINS_KEY, JSON.stringify([...current, strId]));
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export function getStoredCustomAdmins(): PropertyAdmin[] {
   try {
     const raw = localStorage.getItem(CUSTOM_ADMINS_KEY);
@@ -115,6 +151,18 @@ export const adminService = {
     }
 
     let combined = Array.from(adminMap.values());
+    const deletedIds = getDeletedAdminIds();
+
+    // Filter out removed dummy properties, removed dummy emails, and user-deleted admins
+    combined = combined.filter((a) => {
+      const propName = a.propertyName.toLowerCase().trim();
+      const email = a.email.toLowerCase().trim();
+      const id = String(a.id).toLowerCase();
+      if (REMOVED_PROPERTIES.includes(propName)) return false;
+      if (REMOVED_ADMIN_EMAILS.includes(email)) return false;
+      if (deletedIds.includes(id)) return false;
+      return true;
+    });
 
     if (status && status !== 'all') {
       combined = combined.filter((a) => a.status === status);
@@ -282,5 +330,27 @@ export const adminService = {
     localStorage.setItem(CUSTOM_ADMINS_KEY, JSON.stringify(updated));
 
     return { id, status };
+  },
+
+  async deleteAdmin(id: string | number): Promise<boolean> {
+    const rawId = typeof id === 'string' && id.startsWith('ADM-') ? parseInt(id.replace('ADM-', ''), 10) : id;
+
+    try {
+      await apiClient.delete(`/admins/${rawId}`);
+    } catch {
+      // offline fallback
+    }
+
+    addDeletedAdminId(id);
+    addDeletedAdminId(`ADM-${id}`);
+    addDeletedAdminId(rawId);
+
+    const customAdmins = getStoredCustomAdmins();
+    const filtered = customAdmins.filter(
+      (a) => a.id !== id && a.id !== `ADM-${id}` && a.id !== String(rawId)
+    );
+    localStorage.setItem(CUSTOM_ADMINS_KEY, JSON.stringify(filtered));
+
+    return true;
   },
 };

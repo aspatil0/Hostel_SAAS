@@ -4,6 +4,35 @@ import type { Property } from '../types/property';
 
 export const CUSTOM_PROPERTIES_KEY = 'hostelos_custom_properties';
 export const CUSTOM_ADMINS_KEY = 'hostelos_custom_admins';
+export const DELETED_PROPERTIES_KEY = 'hostelos_deleted_properties';
+
+const REMOVED_PROPERTIES = [
+  'greenwood heights co-living & pg',
+  'heritage residency boys hostel',
+  'elite scholars executive hostel',
+];
+
+export function getDeletedPropertyIds(): string[] {
+  try {
+    const raw = localStorage.getItem(DELETED_PROPERTIES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+export function addDeletedPropertyId(id: string | number) {
+  try {
+    const current = getDeletedPropertyIds();
+    const strId = String(id).toLowerCase();
+    if (!current.includes(strId)) {
+      localStorage.setItem(DELETED_PROPERTIES_KEY, JSON.stringify([...current, strId]));
+    }
+  } catch {
+    // ignore
+  }
+}
 
 export function getStoredCustomProperties(): Property[] {
   try {
@@ -69,6 +98,16 @@ export const propertyService = {
     }
 
     let combined = Array.from(propMap.values());
+    const deletedIds = getDeletedPropertyIds();
+
+    // Filter out removed mock properties and user-deleted properties
+    combined = combined.filter((p) => {
+      const name = p.name.toLowerCase().trim();
+      const id = String(p.id).toLowerCase();
+      if (REMOVED_PROPERTIES.includes(name)) return false;
+      if (deletedIds.includes(id)) return false;
+      return true;
+    });
 
     if (status && status !== 'all') {
       combined = combined.filter((p) => p.status === status);
@@ -248,5 +287,27 @@ export const propertyService = {
     localStorage.setItem(CUSTOM_PROPERTIES_KEY, JSON.stringify(updated));
 
     return { id, status };
+  },
+
+  async deleteProperty(id: string | number): Promise<boolean> {
+    const rawId = typeof id === 'string' && id.startsWith('PROP-') ? parseInt(id.replace('PROP-', ''), 10) : id;
+
+    try {
+      await apiClient.delete(`/properties/${rawId}`);
+    } catch {
+      // offline fallback
+    }
+
+    addDeletedPropertyId(id);
+    addDeletedPropertyId(`PROP-${id}`);
+    addDeletedPropertyId(rawId);
+
+    const customProps = getStoredCustomProperties();
+    const filtered = customProps.filter(
+      (p) => p.id !== id && p.id !== `PROP-${id}` && p.id !== String(rawId)
+    );
+    localStorage.setItem(CUSTOM_PROPERTIES_KEY, JSON.stringify(filtered));
+
+    return true;
   },
 };
