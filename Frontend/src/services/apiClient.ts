@@ -34,10 +34,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       headers,
     });
 
-    // Automatically clear token on 401 Unauthorized
-    if (response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+    // Automatically clear expired session token on 401 Unauthorized (unless it is a login attempt or dev offline token)
+    if (response.status === 401 && !url.includes('/auth/login')) {
+      const currentToken = localStorage.getItem('token');
+      if (currentToken && !currentToken.startsWith('dev_')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
 
     if (!response.ok) {

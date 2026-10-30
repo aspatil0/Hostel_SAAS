@@ -5,6 +5,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 // Layouts
 import { SuperAdminLayout } from "./Layouts/SuperAdminLayout";
 import { PropertyAdminLayout } from "./Layouts/PropertyAdminLayout";
+import { StudentLayout } from "./Layouts/StudentLayout";
 
 // Auth Pages
 import { LoginPage } from "./pages/auth/LoginPage";
@@ -12,6 +13,7 @@ import { RegisterPage } from "./pages/auth/RegisterPage";
 import { ForgotPasswordPage } from "./pages/auth/ForgotPasswordPage";
 import { SuperAdminLoginPage } from "./pages/auth/Super_Admin/SuperAdminLoginPage";
 import { PropertyAdminLoginPage } from "./pages/auth/Property_Admin/PropertyAdminLoginPage";
+import { StudentLoginPage } from "./pages/auth/Student/StudentLoginPage";
 
 // Super Admin Pages
 import { DashboardPage } from "./pages/auth/Super_Admin/DashboardPage";
@@ -26,6 +28,14 @@ import { RentPage } from "./pages/auth/Property_Admin/RentPage";
 import { RoomMatrixPage } from "./pages/auth/Property_Admin/RoomMatrixPage";
 import { ProfilePage } from "./pages/auth/Property_Admin/ProfilePage";
 
+// Student Portal Operational Pages (Phase 2 - Siddhi)
+import { StudentDashboardPage } from "./pages/student/StudentDashboardPage";
+import { StudentFeesPage } from "./pages/student/StudentFeesPage";
+import { StudentLeavesPage } from "./pages/student/StudentLeavesPage";
+import { StudentComplaintsPage } from "./pages/student/StudentComplaintsPage";
+import { StudentContactPage } from "./pages/student/StudentContactPage";
+import { StudentProfilePage } from "./pages/student/StudentProfilePage";
+
 export function App() {
   return (
     <ThemeProvider>
@@ -36,6 +46,7 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin/login" element={<SuperAdminLoginPage />} />
             <Route path="/property-admin/login" element={<PropertyAdminLoginPage />} />
+            <Route path="/student/login" element={<StudentLoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
@@ -59,8 +70,19 @@ export function App() {
               <Route path="/property-admin/profile" element={<ProfilePage />} />
             </Route>
 
-            {/* 4. Catch-all Fallback */}
-            <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+            {/* 4. Student Resident Portal Layout & Dedicated Routes (Phase 2 - Siddhi) */}
+            <Route element={<StudentLayout />}>
+              <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+              <Route path="/student/dashboard" element={<StudentDashboardPage />} />
+              <Route path="/student/fees" element={<StudentFeesPage />} />
+              <Route path="/student/leaves" element={<StudentLeavesPage />} />
+              <Route path="/student/complaints" element={<StudentComplaintsPage />} />
+              <Route path="/student/contact" element={<StudentContactPage />} />
+              <Route path="/student/profile" element={<StudentProfilePage />} />
+            </Route>
+
+            {/* 5. Catch-all Fallback */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
