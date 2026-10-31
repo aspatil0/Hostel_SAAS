@@ -17,22 +17,6 @@ export const initialProperties: Property[] = [
     status: 'active',
     createdAt: '2026-08-15',
   },
-  {
-    id: 'PROP-02',
-    name: 'Greenwood Heights Co-living & PG',
-    address: 'Viman Nagar, Near Symbiosis Campus',
-    city: 'Pune',
-    image:
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80',
-    ownerName: 'Sneha Patil',
-    ownerPhone: '+91 98202 23456',
-    ownerEmail: 'sneha.patil@greenwoodpg.in',
-    totalRooms: 30,
-    totalBeds: 80,
-    occupiedBeds: 68,
-    status: 'active',
-    createdAt: '2026-09-01',
-  },
 ];
 
 export const initialPropertyAdmins: PropertyAdmin[] = [
@@ -52,23 +36,6 @@ export const initialPropertyAdmins: PropertyAdmin[] = [
     portalPassword: 'Skyline@2026',
     status: 'active',
     joinedDate: '2026-08-15',
-  },
-  {
-    id: 'ADM-02',
-    ownerName: 'Sneha Patil',
-    phone: '+91 98202 23456',
-    email: 'sneha.patil@greenwoodpg.in',
-    propertyName: 'Greenwood Heights Co-living & PG',
-    address: 'Viman Nagar, Near Symbiosis Campus',
-    city: 'Pune',
-    image:
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80',
-    totalRooms: 30,
-    totalBeds: 80,
-    occupiedBeds: 68,
-    portalPassword: 'Greenwood@2026',
-    status: 'active',
-    joinedDate: '2026-09-01',
   },
 ];
 
@@ -94,27 +61,6 @@ export const initialMarketingPosts: MarketingPost[] = [
       twitter: 'https://twitter.com',
     },
     createdAt: '2026-10-15',
-  },
-  {
-    id: 'MKT-02',
-    propertyId: 'PROP-02',
-    propertyName: 'Greenwood Heights Co-living & PG',
-    city: 'Pune',
-    address: 'Viman Nagar, Near Symbiosis Campus',
-    image: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=800&q=80',
-    headline: '🌟 Modern Student & PG Co-living with Cafeteria & Gym',
-    description: 'Spacious balcony rooms, biometric entry, high-speed fiber internet, and daily housekeeping. Walking distance to Symbiosis colleges and corporate tech parks.',
-    startingPrice: 9500,
-    likes: 219,
-    views: 1920,
-    inquiries: 31,
-    isLiveOnLandingPage: true,
-    socialLinks: {
-      whatsapp: 'https://wa.me/919820223456?text=Hi,%20I%20want%20to%20inquire%20about%20Greenwood%20Heights',
-      instagram: 'https://instagram.com',
-      facebook: 'https://facebook.com',
-    },
-    createdAt: '2026-10-18',
   },
 ];
 

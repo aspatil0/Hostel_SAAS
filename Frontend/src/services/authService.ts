@@ -6,24 +6,19 @@ export interface AuthResponse {
   user: User;
 }
 
+// 1. Only Super Admin has a fixed root account
 export const SUPER_ADMIN_CREDENTIALS = {
   email: 'dt.adittarajpatil@gmail.com',
   password: 'dt.aditya@2026',
   name: 'Aditya Raj Patil',
 };
 
-export const PROPERTY_ADMIN_CREDENTIALS = {
-  email: 'rahul.sharma@skylinehostels.com',
-  password: 'Skyline@2026',
-  name: 'Rahul Sharma',
-  propertyName: 'Grand Skyline Premier Hostel',
-};
-
+// Default sample student credentials for login page prefill / dev demo
 export const STUDENT_CREDENTIALS = {
-  email: 'aarav.mehta@iitb.ac.in',
-  password: 'Student@123',
+  email: 'aarav.mehta@gmail.com',
+  password: 'Student@2026',
   name: 'Aarav Mehta',
-  studentCode: 'HOS-2026-0891',
+  studentCode: 'STU-01',
   propertyName: 'Grand Skyline Premier Hostel',
   roomNumber: '101',
   bedNumber: 'Bed A',
@@ -32,12 +27,13 @@ export const STUDENT_CREDENTIALS = {
 export const authService = {
   async login(credentials: LoginCredential): Promise<AuthResponse> {
     const trimmedEmail = credentials.email.trim().toLowerCase();
+    const rawPassword = credentials.password;
 
+    // 1. Primary: Authenticate against backend NestJS + MySQL database
     try {
-      // 1. Try authenticating with backend NestJS API
       const response = await apiClient.post<AuthResponse>('/auth/login', {
         email: trimmedEmail,
-        password: credentials.password,
+        password: rawPassword,
       });
 
       if (response && response.token) {
@@ -45,16 +41,16 @@ export const authService = {
         localStorage.setItem('user', JSON.stringify(response.user));
         return response;
       }
-    } catch (error: any) {
-      // 2. Local dev fallback for Super Admin
-      if (
-        (trimmedEmail === SUPER_ADMIN_CREDENTIALS.email ||
-          trimmedEmail === 'superadmin@hostelos.local' ||
-          trimmedEmail === 'dt.adityarajpatil@gmail.com') &&
-        (credentials.password === SUPER_ADMIN_CREDENTIALS.password ||
-          credentials.password === 'SuperAdmin@123' ||
-          credentials.password === 'dt.aditya@2026')
-      ) {
+    } catch (backendError: any) {
+      console.warn(
+        'Backend login request did not succeed, verifying local/registered credentials:',
+        backendError?.message
+      );
+    }
+
+    // 2. Fixed root credentials for Super Admin ONLY
+    if (trimmedEmail === SUPER_ADMIN_CREDENTIALS.email.toLowerCase()) {
+      if (rawPassword === SUPER_ADMIN_CREDENTIALS.password) {
         const mockResponse: AuthResponse = {
           token: `dev_superadmin_jwt_${Date.now()}`,
           user: {
@@ -65,145 +61,132 @@ export const authService = {
             status: 'active',
           },
         };
-
         localStorage.setItem('token', mockResponse.token);
         localStorage.setItem('user', JSON.stringify(mockResponse.user));
         return mockResponse;
+      } else {
+        throw new Error('Invalid password for Super Administrator account.');
       }
+    }
 
-      // 3. Local dev fallback for Default Property Admin
-      if (
-        trimmedEmail === PROPERTY_ADMIN_CREDENTIALS.email &&
-        (credentials.password === PROPERTY_ADMIN_CREDENTIALS.password ||
-          credentials.password === 'HostelAdmin@123')
-      ) {
+    // 3. Property Admins created by Super Admin (persisted in custom admins store)
+    let customAdmins: any[] = [];
+    try {
+      const rawCustom = localStorage.getItem('hostelos_custom_admins');
+      if (rawCustom) customAdmins = JSON.parse(rawCustom);
+    } catch {
+      // ignore
+    }
+
+    const matchedAdmin = customAdmins.find(
+      (a: any) => a.email?.toLowerCase().trim() === trimmedEmail
+    );
+
+    if (matchedAdmin) {
+      // Must match the password created by the Super Admin in the dashboard form
+      const expectedPassword = matchedAdmin.portalPassword || matchedAdmin.password;
+      if (expectedPassword && rawPassword === expectedPassword) {
         const mockResponse: AuthResponse = {
           token: `dev_propertyadmin_jwt_${Date.now()}`,
           user: {
-            _id: 'usr_propertyadmin_01',
-            name: PROPERTY_ADMIN_CREDENTIALS.name,
-            email: PROPERTY_ADMIN_CREDENTIALS.email,
+            _id: matchedAdmin.id || `ADM-${Date.now().toString().slice(-4)}`,
+            name: matchedAdmin.ownerName || matchedAdmin.name || 'Property Admin',
+            email: matchedAdmin.email,
             role: 'PROPERTY_ADMIN',
             status: 'active',
-            propertyName: PROPERTY_ADMIN_CREDENTIALS.propertyName,
-            assignedProperties: ['PROP-01'],
+            propertyName: matchedAdmin.propertyName || 'Assigned Hostel',
+            assignedProperties: [matchedAdmin.propertyName || 'Assigned Hostel'],
           },
         };
-
         localStorage.setItem('token', mockResponse.token);
         localStorage.setItem('user', JSON.stringify(mockResponse.user));
         return mockResponse;
+      } else {
+        throw new Error('Incorrect password for this Property Admin account.');
       }
+    }
 
-      // 4. Local dev fallback for Student Resident
-      if (
-        (trimmedEmail === STUDENT_CREDENTIALS.email ||
-          trimmedEmail === 'student@hostelos.com' ||
-          trimmedEmail === 'aarav.mehta@gmail.com') &&
-        (credentials.password === STUDENT_CREDENTIALS.password ||
-          credentials.password === 'Student@123' ||
-          credentials.password === 'Hostel@2026')
-      ) {
+    // 4. Students created by Property Admin (persisted in portal store / registered students)
+    let customStudents: any[] = [];
+    try {
+      const rawStudents = localStorage.getItem('hostelos_custom_students');
+      if (rawStudents) customStudents = JSON.parse(rawStudents);
+    } catch {
+      // ignore
+    }
+
+    const matchedStudent = customStudents.find(
+      (s: any) => s.email?.toLowerCase().trim() === trimmedEmail
+    );
+
+    if (matchedStudent) {
+      // Must match the password provisioned by Property Admin (e.g. Student@2026 or configured pass)
+      const expectedPassword = matchedStudent.password || matchedStudent.tempPassword || 'Student@2026';
+      if (rawPassword === expectedPassword) {
         const mockResponse: AuthResponse = {
           token: `dev_student_jwt_${Date.now()}`,
           user: {
-            _id: 'usr_student_01',
-            name: STUDENT_CREDENTIALS.name,
-            email: trimmedEmail,
+            _id: matchedStudent.id || `STU-${Date.now().toString().slice(-4)}`,
+            name: matchedStudent.name || 'Student Resident',
+            email: matchedStudent.email,
             role: 'STUDENT',
             status: 'active',
-            studentCode: STUDENT_CREDENTIALS.studentCode,
-            propertyName: STUDENT_CREDENTIALS.propertyName,
-            roomNumber: STUDENT_CREDENTIALS.roomNumber,
-            bedNumber: STUDENT_CREDENTIALS.bedNumber,
-            assignedProperties: [STUDENT_CREDENTIALS.propertyName],
+            studentCode: matchedStudent.studentCode || matchedStudent.id,
+            propertyName: matchedStudent.propertyName || 'Hostel Resident',
+            roomNumber: matchedStudent.roomNumber || '101',
+            bedNumber: matchedStudent.bedNumber || 'Bed A',
+            assignedProperties: [matchedStudent.propertyName || 'Hostel Resident'],
           },
         };
-
         localStorage.setItem('token', mockResponse.token);
         localStorage.setItem('user', JSON.stringify(mockResponse.user));
         return mockResponse;
+      } else {
+        throw new Error('Incorrect password for this student account.');
       }
-
-      // 5. Local fallback for newly registered custom Property Admins
-      try {
-        const rawCustomAdmins = localStorage.getItem('hostelos_custom_admins');
-        if (rawCustomAdmins) {
-          const customAdmins = JSON.parse(rawCustomAdmins);
-          const matched = customAdmins.find(
-            (a: any) => a.email?.toLowerCase().trim() === trimmedEmail
-          );
-
-          if (matched) {
-            const isPasswordMatch =
-              !credentials.password ||
-              matched.portalPassword === credentials.password ||
-              matched.password === credentials.password ||
-              matched.portalPassword?.toLowerCase() === credentials.password?.toLowerCase() ||
-              credentials.password === 'HostelAdmin@123' ||
-              credentials.password === 'Hostel@2026' ||
-              credentials.password === 'Siddhi@2695';
-
-            if (isPasswordMatch) {
-              const mockResponse: AuthResponse = {
-                token: `dev_propertyadmin_jwt_${Date.now()}`,
-                user: {
-                  _id: matched.id,
-                  name: matched.ownerName || 'Property Admin',
-                  email: matched.email,
-                  role: 'PROPERTY_ADMIN',
-                  status: matched.status || 'active',
-                  propertyName: matched.propertyName,
-                  assignedProperties: [matched.propertyName],
-                },
-              };
-              localStorage.setItem('token', mockResponse.token);
-              localStorage.setItem('user', JSON.stringify(mockResponse.user));
-              return mockResponse;
-            } else {
-              throw new Error('Incorrect password for this Property Admin account');
-            }
-          }
-        }
-      } catch (e: any) {
-        if (e?.message?.includes('Incorrect password')) {
-          throw e;
-        }
-      }
-
-      // Re-throw meaningful error
-      throw new Error(error?.message || 'Invalid email or password');
     }
 
-    throw new Error('Invalid email or password');
+    throw new Error('Invalid email or password. Please contact your property administrator.');
   },
 
   async getMe(): Promise<User> {
     try {
-      const response = await apiClient.get<User>('/auth/me');
-      if (response) {
-        localStorage.setItem('user', JSON.stringify(response));
-        return response;
+      const user = await apiClient.get<User>('/auth/me');
+      if (user && user.email) {
+        localStorage.setItem('user', JSON.stringify(user));
+        return user;
       }
     } catch {
-      // Return cached user if offline
-      const cached = localStorage.getItem('user');
-      if (cached) {
-        return JSON.parse(cached) as User;
-      }
+      // fallback to stored local user
     }
 
-    throw new Error('User session expired');
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      return JSON.parse(raw);
+    }
+    throw new Error('No active session');
   },
 
-  async logout(): Promise<void> {
+  logout(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+
+  getToken(): string | null {
+    return localStorage.getItem('token');
+  },
+
+  getCurrentUser(): User | null {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
     try {
-      await apiClient.post('/auth/logout');
+      return JSON.parse(raw);
     } catch {
-      // Ignore network errors on logout
-    } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      return null;
     }
+  },
+
+  isAuthenticated(): boolean {
+    return !!this.getToken();
   },
 };

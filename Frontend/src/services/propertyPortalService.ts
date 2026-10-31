@@ -79,9 +79,36 @@ export const propertyPortalService = {
       console.warn('Property portal dashboard API offline, using local fallback:', e);
     }
 
-    const totalBeds = 120;
-    const occupiedBeds = initialStudents.length;
-    const vacantBeds = totalBeds - occupiedBeds;
+    const userRaw = localStorage.getItem('user');
+    let userPropName = 'Grand Skyline Premier Hostel';
+    let propTotalBeds = 120;
+    if (userRaw) {
+      try {
+        const u = JSON.parse(userRaw);
+        if (u.propertyName) userPropName = u.propertyName;
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      const rawProps = localStorage.getItem('hostelos_custom_properties');
+      if (rawProps) {
+        const props = JSON.parse(rawProps);
+        const matched = props.find(
+          (p: any) => p.name?.toLowerCase() === userPropName.toLowerCase()
+        );
+        if (matched && matched.totalBeds) {
+          propTotalBeds = Number(matched.totalBeds);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const totalBeds = propTotalBeds;
+    const occupiedBeds = Math.min(totalBeds, initialStudents.length);
+    const vacantBeds = Math.max(0, totalBeds - occupiedBeds);
     const occupancyPercentage = Math.round((occupiedBeds / totalBeds) * 100);
 
     const totalMonthlyBilled = initialRentRecords.reduce((sum, r) => sum + r.amount, 0);
@@ -92,7 +119,7 @@ export const propertyPortalService = {
 
     return {
       propertyId: 1,
-      propertyName: 'Grand Skyline Premier Hostel',
+      propertyName: userPropName,
       occupancy: {
         totalBeds,
         occupiedBeds,
@@ -215,6 +242,28 @@ export const propertyPortalService = {
     };
   },
 
+  async getInvoices(status?:string, studentId?:number):Promise<any[]>{
+    try {
+      const params=new URLSearchParams();
+      if(status && status !== 'all') params.append('status',status);
+      if(studentId) params.append('studentId',String(studentId));
+      const query=params.toString();
+      const data= await apiClient.get<any[]>(`/property-portal/invoices${query ?`?${query}`:'' }`);
+      if (Array.isArray(data)) return data;
+    } catch (e) {
+      console.warn('Failed to load invoices from API:',e);
+    }
+    return [];
+  },
+
+  async createInvoice(invoiceData:{
+    studentId:number;
+    title:string;
+    category?:string;
+    amount:number;
+    dueDate:string;
+  }):Promise<any>{return await  apiClient.post('/property-portal/invoices', invoiceData)},
+
   async getRooms(): Promise<RoomNode[]> {
     try {
       const rooms = await apiClient.get<RoomNode[]>('/property-portal/rooms');
@@ -303,28 +352,85 @@ export const propertyPortalService = {
     } catch (e) {
       console.warn('Get profile API offline:', e);
     }
+
+    // Check if user previously customized profile locally
+    try {
+      const savedProfile = localStorage.getItem('hostelos_property_profile');
+      if (savedProfile) {
+        const parsed = JSON.parse(savedProfile);
+        if (parsed && parsed.hostelData) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Dynamically resolve from logged-in user and custom properties
+    const userRaw = localStorage.getItem('user');
+    let managerName = 'Rahul Sharma';
+    let managerEmail = 'rahul.sharma@skylinehostels.com';
+    let managerPhone = '+91 98201 12345';
+    let propName = 'Grand Skyline Premier Hostel';
+    let propCity = 'Mumbai';
+    let propAddress = 'Opp. University North Gate, Powai Road';
+    let propRooms = 45;
+    let propBeds = 120;
+
+    if (userRaw) {
+      try {
+        const u = JSON.parse(userRaw);
+        if (u.name) managerName = u.name;
+        if (u.email) managerEmail = u.email;
+        if (u.phone) managerPhone = u.phone;
+        if (u.propertyName) propName = u.propertyName;
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      const rawProps = localStorage.getItem('hostelos_custom_properties');
+      if (rawProps) {
+        const props = JSON.parse(rawProps);
+        const matched = props.find(
+          (p: any) =>
+            (p.name && p.name.toLowerCase() === propName.toLowerCase()) ||
+            (p.managerEmail && p.managerEmail.toLowerCase() === managerEmail.toLowerCase())
+        );
+        if (matched) {
+          if (matched.name) propName = matched.name;
+          if (matched.city) propCity = matched.city;
+          if (matched.address) propAddress = matched.address;
+          if (matched.totalRooms) propRooms = Number(matched.totalRooms);
+          if (matched.totalBeds) propBeds = Number(matched.totalBeds);
+          if (matched.ownerPhone || matched.managerPhone) managerPhone = matched.ownerPhone || matched.managerPhone;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     return {
       hostelData: {
-        name: 'Grand Skyline Premier Hostel',
+        name: propName,
         tagline: 'Premium Student & Executive PG Accommodation',
-        address: 'Opp. University North Gate, Powai Road',
-        city: 'Mumbai',
+        address: propAddress,
+        city: propCity,
         state: 'Maharashtra',
         pincode: '400076',
-        contactPhone: '+91 98201 12345',
-        contactEmail: 'contact@grandskyline.com',
-        totalRooms: 45,
-        totalBeds: 120,
+        contactPhone: managerPhone,
+        contactEmail: managerEmail,
+        totalRooms: propRooms,
+        totalBeds: propBeds,
         curfewTime: '10:30 PM',
         messBreakfast: '07:30 AM - 09:30 AM',
         messDinner: '08:00 PM - 10:00 PM',
       },
       managerData: {
-        name: 'Rahul Sharma',
+        name: managerName,
         role: 'Authorized Property Manager',
-        phone: '+91 98201 12345',
-        email: 'rahul.sharma@skylinehostels.com',
-        emergencyPhone: '+91 98201 00999',
+        phone: managerPhone,
+        email: managerEmail,
+        emergencyPhone: managerPhone,
       },
       amenities: {
         wifi: true,
@@ -342,6 +448,11 @@ export const propertyPortalService = {
   },
 
   async updateProfile(profileData: Partial<PropertyProfileData>): Promise<any> {
+    try {
+      localStorage.setItem('hostelos_property_profile', JSON.stringify(profileData));
+    } catch {
+      // ignore
+    }
     try {
       return await apiClient.patch('/property-portal/profile', profileData);
     } catch (e) {

@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateStudentDto } from './dto/create-student.dto.js';
+import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
+import { UpdateStudentDto } from './dto/update-student.dto.js';
 import { RecordPaymentDto } from './dto/record-payment.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { AllocateRoomDto } from './dto/allocate-room.dto.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as bcrypt from 'bcrypt';
+import { Role, UserStatus, StudentStatus, InvoiceStatus, FeeCategory } from '@prisma/client';
 
 export interface StudentRecord {
   id: string;
@@ -337,12 +341,66 @@ export class PropertyPortalService {
 
   async getStudents(user: any, search?: string, status?: string, propertyId?: number) {
     const propId = this.resolvePropertyId(user, propertyId);
-    let list = this.students.filter((s) => s.propertyId === propId);
 
+    // Build Prisma query condition with property tenant isolation
+    const whereCondition: any = {
+      propertyId: propId,
+    };
+
+    if (status && status !== 'all') {
+      whereCondition.status = status.toUpperCase() === 'ACTIVE' ? 'ACTIVE' : 'CHECKED_OUT';
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      whereCondition.OR = [
+        { user: { name: { contains: q } } },
+        { phone: { contains: q } },
+        { roomNumber: { contains: q } },
+        { collegeOrCompany: { contains: q } },
+        { studentCode: { contains: q } },
+      ];
+    }
+
+    const dbStudents = await this.prisma.student.findMany({
+      where: whereCondition,
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (dbStudents.length > 0) {
+      return dbStudents.map((s) => ({
+        id: s.studentCode,
+        dbId: s.id,
+        name: s.user?.name || '',
+        phone: s.phone,
+        email: s.user?.email || '',
+        guardianName: s.guardianName,
+        guardianPhone: s.guardianPhone,
+        collegeOrCompany: s.collegeOrCompany || '',
+        roomNumber: s.roomNumber,
+        bedNumber: s.bedNumber,
+        monthlyRent: Number(s.monthlyRent),
+        depositAmount: Number(s.depositAmount),
+        checkInDate: s.admissionDate.toISOString().split('T')[0],
+        status: (s.status.toLowerCase() as 'active' | 'checked_out'),
+        idProofNumber: s.idProofNumber || 'Aadhar Verified',
+        propertyId: s.propertyId,
+      }));
+    }
+
+    // Fallback to in-memory store if DB has not been seeded yet
+    let list = this.students.filter((s) => s.propertyId === propId);
     if (status && status !== 'all') {
       list = list.filter((s) => s.status === status);
     }
-
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -353,68 +411,235 @@ export class PropertyPortalService {
           s.collegeOrCompany.toLowerCase().includes(q),
       );
     }
-
     return list;
+  }
+
+  async getStudentById(user: any, id: string | number) {
+    const propId = this.resolvePropertyId(user);
+    const numericId = typeof id === 'number' ? id : parseInt(id, 10);
+
+    const student = await this.prisma.student.findFirst({
+      where: {
+        propertyId: propId,
+        OR: [
+          ...(isNaN(numericId) ? [] : [{ id: numericId }]),
+          { studentCode: String(id) },
+        ],
+      },
+      include: {
+        user: { select: { id: true, name: true, email: true, status: true } },
+        invoices: { orderBy: { createdAt: 'desc' } },
+        payments: { orderBy: { paidAt: 'desc' } },
+        leaves: { orderBy: { createdAt: 'desc' } },
+        complaints: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student ${id} not found in this property`);
+    }
+
+    return student;
+  }
+
+  async updateStudent(user: any, id: string | number, dto: UpdateStudentDto) {
+    const propId = this.resolvePropertyId(user);
+    const numericId = typeof id === 'number' ? id : parseInt(id, 10);
+
+    const existing = await this.prisma.student.findFirst({
+      where: {
+        propertyId: propId,
+        OR: [
+          ...(isNaN(numericId) ? [] : [{ id: numericId }]),
+          { studentCode: String(id) },
+        ],
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Student ${id} not found`);
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      if (dto.name) {
+        await tx.user.update({
+          where: { id: existing.userId },
+          data: { name: dto.name.trim() },
+        });
+      }
+
+      return await tx.student.update({
+        where: { id: existing.id },
+        data: {
+          ...(dto.phone && { phone: dto.phone.trim() }),
+          ...(dto.guardianName && { guardianName: dto.guardianName.trim() }),
+          ...(dto.guardianPhone && { guardianPhone: dto.guardianPhone.trim() }),
+          ...(dto.collegeOrCompany && { collegeOrCompany: dto.collegeOrCompany.trim() }),
+          ...(dto.roomNumber && { roomNumber: dto.roomNumber }),
+          ...(dto.bedNumber && { bedNumber: dto.bedNumber }),
+          ...(dto.monthlyRent !== undefined && { monthlyRent: dto.monthlyRent }),
+          ...(dto.depositAmount !== undefined && { depositAmount: dto.depositAmount }),
+          ...(dto.status && { status: dto.status as StudentStatus }),
+        },
+      });
+    });
+  }
+
+  async getInvoices(user: any, status?: string, studentId?: number, propertyId?: number) {
+    const propId = this.resolvePropertyId(user, propertyId);
+    const where: any = { propertyId: propId };
+
+    if (status && status !== 'all') {
+      where.status = status.toUpperCase();
+    }
+
+    if (studentId) {
+      where.studentId = Number(studentId);
+    }
+
+    return await this.prisma.feeInvoice.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            user: { select: { name: true, email: true } },
+          },
+        },
+        payments: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createInvoice(user: any, dto: CreateInvoiceDto) {
+    const propId = this.resolvePropertyId(user);
+
+    // Verify student exists and belongs to this property
+    const student = await this.prisma.student.findFirst({
+      where: { id: Number(dto.studentId), propertyId: propId },
+      include: { user: true },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${dto.studentId} does not exist in this property`);
+    }
+
+    const now = new Date();
+    const invoiceNumber = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+
+    return await this.prisma.feeInvoice.create({
+      data: {
+        invoiceNumber,
+        studentId: student.id,
+        propertyId: propId,
+        category: (dto.category as FeeCategory) || FeeCategory.RENT,
+        title: dto.title.trim(),
+        amount: Number(dto.amount),
+        paidAmount: 0,
+        dueDate: new Date(dto.dueDate),
+        status: InvoiceStatus.UNPAID,
+      },
+      include: {
+        student: {
+          include: { user: { select: { name: true, email: true } } },
+        },
+      },
+    });
   }
 
   async createStudent(user: any, dto: CreateStudentDto) {
     const propId = this.resolvePropertyId(user, dto.propertyId);
 
-    const newStudent: StudentRecord = {
-      id: `STU-${String(this.students.length + 1).padStart(2, '0')}`,
-      name: dto.name.trim(),
-      phone: dto.phone.trim(),
-      email: dto.email?.trim() || `${dto.name.toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
-      guardianName: dto.guardianName?.trim() || 'Parent / Guardian',
-      guardianPhone: dto.guardianPhone?.trim() || dto.phone,
-      collegeOrCompany: dto.collegeOrCompany?.trim() || 'Institution / Company',
-      roomNumber: dto.roomNumber,
-      bedNumber: dto.bedNumber,
-      monthlyRent: Number(dto.monthlyRent) || 12500,
-      depositAmount: Number(dto.depositAmount) || 25000,
-      checkInDate: dto.checkInDate || new Date().toISOString().split('T')[0],
-      status: 'active',
-      idProofNumber: dto.idProofNumber || 'Aadhar Verified',
-      propertyId: propId,
-    };
+    const studentEmail =
+      dto.email?.trim().toLowerCase() ||
+      `${dto.name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}.${Date.now().toString().slice(-4)}@student.hostel.com`;
 
-    this.students.unshift(newStudent);
-
-    // Create current month rent record automatically
-    const now = new Date();
-    const monthYear = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-    const newRent: RentRecordItem = {
-      id: `RENT-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${newStudent.id.replace('STU-', '')}`,
-      studentId: newStudent.id,
-      studentName: newStudent.name,
-      roomNumber: newStudent.roomNumber,
-      month: monthYear,
-      amount: newStudent.monthlyRent,
-      paidAmount: 0,
-      dueDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-05`,
-      status: 'pending',
-      propertyId: propId,
-    };
-    this.rentRecords.unshift(newRent);
-
-    // Update Room matrix if room exists
-    const room = this.rooms.find((r) => r.propertyId === propId && r.roomNumber === dto.roomNumber);
-    if (room) {
-      const bed = room.beds.find((b) => b.bedName === dto.bedNumber || b.bedId.endsWith(dto.bedNumber));
-      if (bed) {
-        bed.status = 'occupied';
-        bed.student = {
-          name: newStudent.name,
-          phone: newStudent.phone,
-          college: newStudent.collegeOrCompany,
-          checkInDate: newStudent.checkInDate,
-          rent: newStudent.monthlyRent,
-        };
-      }
+    // Check for duplicate user email
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: studentEmail },
+    });
+    if (existingUser) {
+      throw new ConflictException(`A user with email ${studentEmail} already exists`);
     }
 
-    this.saveStore();
-    return newStudent;
+    const studentCode = `STU-${Date.now().toString().slice(-4)}`;
+    const defaultPassword = 'Student@2026';
+    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const userRecord = await tx.user.create({
+        data: {
+          name: dto.name.trim(),
+          email: studentEmail,
+          passwordHash,
+          role: Role.STUDENT,
+          status: UserStatus.ACTIVE,
+        },
+      });
+
+      const student = await tx.student.create({
+        data: {
+          studentCode,
+          userId: userRecord.id,
+          propertyId: propId,
+          phone: dto.phone.trim(),
+          guardianName: dto.guardianName?.trim() || 'Parent / Guardian',
+          guardianPhone: dto.guardianPhone?.trim() || dto.phone.trim(),
+          collegeOrCompany: dto.collegeOrCompany?.trim() || 'Institution / Company',
+          roomNumber: dto.roomNumber,
+          bedNumber: dto.bedNumber,
+          monthlyRent: Number(dto.monthlyRent) || 0,
+          depositAmount: Number(dto.depositAmount) || 0,
+          status: 'ACTIVE',
+        },
+      });
+
+      const now = new Date();
+      const invoiceNumber = `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${student.id}`;
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 5);
+
+      if (Number(dto.monthlyRent) > 0) {
+        await tx.feeInvoice.create({
+          data: {
+            invoiceNumber,
+            studentId: student.id,
+            propertyId: propId,
+            category: 'RENT',
+            title: `Hostel Rent - ${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
+            amount: Number(dto.monthlyRent),
+            paidAmount: 0,
+            dueDate,
+            status: 'UNPAID',
+          },
+        });
+      }
+
+      return {
+        id: student.studentCode,
+        dbId: student.id,
+        name: userRecord.name,
+        email: userRecord.email,
+        phone: student.phone,
+        guardianName: student.guardianName,
+        guardianPhone: student.guardianPhone,
+        collegeOrCompany: student.collegeOrCompany || '',
+        roomNumber: student.roomNumber,
+        bedNumber: student.bedNumber,
+        monthlyRent: Number(student.monthlyRent),
+        depositAmount: Number(student.depositAmount),
+        checkInDate: student.admissionDate.toISOString().split('T')[0],
+        status: 'active' as const,
+        idProofNumber: student.idProofNumber || 'Aadhar Verified',
+        propertyId: student.propertyId,
+        credentials: {
+          email: userRecord.email,
+          tempPassword: defaultPassword,
+        },
+      };
+    });
+
+    return result;
   }
 
   async checkoutStudent(user: any, id: string) {

@@ -22,6 +22,7 @@ import {
   Upload,
   KeyRound,
   Copy,
+  Trash2,
 } from 'lucide-react';
 import {
   Button,
@@ -70,7 +71,7 @@ export function PropertyAdminsPage() {
     status: 'active' as 'active' | 'inactive',
   });
 
-  // Load admins and properties from backend with fallback
+  // Load admins and properties from backend with fallback  
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
@@ -228,6 +229,16 @@ export function PropertyAdminsPage() {
         a.id === id ? { ...a, status: nextStatus } : a
       )
     );
+  };
+
+  const handleDeleteAdmin = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this property administrator?')) return;
+    try {
+      await adminService.deleteAdmin(id);
+    } catch {
+      // offline fallback
+    }
+    setAdmins((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleSubmitForm = async (e: FormEvent) => {
@@ -406,6 +417,15 @@ export function PropertyAdminsPage() {
             title="Edit Admin"
           >
             <Edit2 className="h-4 w-4 text-slate-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDeleteAdmin(a.id)}
+            title="Delete Admin"
+            className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          >
+            <Trash2 className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
@@ -708,6 +728,14 @@ export function PropertyAdminsPage() {
                         title="Edit Admin & Property"
                       >
                         <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAdmin(admin.id)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-100 hover:text-rose-600 transition-colors dark:hover:bg-rose-950/40 dark:hover:text-rose-400 cursor-pointer"
+                        title="Delete Admin"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                       <button
                         type="button"

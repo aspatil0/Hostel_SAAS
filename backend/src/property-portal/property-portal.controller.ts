@@ -20,6 +20,8 @@ import {
   RoomNode,
 } from './property-portal.service.js';
 import { CreateStudentDto } from './dto/create-student.dto.js';
+import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
+import { UpdateStudentDto } from './dto/update-student.dto.js';
 import { RecordPaymentDto } from './dto/record-payment.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { AllocateRoomDto } from './dto/allocate-room.dto.js';
@@ -54,8 +56,27 @@ export class PropertyPortalController {
   createStudent(
     @CurrentUser() user: any,
     @Body() dto: CreateStudentDto,
-  ): Promise<StudentRecord> {
+  ): Promise<any> {
     return this.portalService.createStudent(user, dto);
+  }
+
+  @Get('students/:id')
+  @Roles(Role.PROPERTY_ADMIN, Role.SUPER_ADMIN)
+  getStudentById(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+  ): Promise<any> {
+    return this.portalService.getStudentById(user, id);
+  }
+
+  @Patch('students/:id')
+  @Roles(Role.PROPERTY_ADMIN, Role.SUPER_ADMIN)
+  updateStudent(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: UpdateStudentDto,
+  ): Promise<any> {
+    return this.portalService.updateStudent(user, id, dto);
   }
 
   @Patch('students/:id/checkout')
@@ -65,6 +86,26 @@ export class PropertyPortalController {
     @Param('id') id: string,
   ): Promise<any> {
     return this.portalService.checkoutStudent(user, id);
+  }
+
+  @Get('invoices')
+  @Roles(Role.PROPERTY_ADMIN, Role.SUPER_ADMIN)
+  getInvoices(
+    @CurrentUser() user: any,
+    @Query('status') status?: string,
+    @Query('studentId') studentId?: number,
+    @Query('propertyId') propertyId?: number,
+  ): Promise<any> {
+    return this.portalService.getInvoices(user, status, studentId, propertyId);
+  }
+
+  @Post('invoices')
+  @Roles(Role.PROPERTY_ADMIN, Role.SUPER_ADMIN)
+  createInvoice(
+    @CurrentUser() user: any,
+    @Body() dto: CreateInvoiceDto,
+  ): Promise<any> {
+    return this.portalService.createInvoice(user, dto);
   }
 
   @Get('rent')

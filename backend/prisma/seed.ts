@@ -34,7 +34,7 @@ async function main() {
     },
   });
 
-  // 2. Seed Initial Hostels / Properties
+  // 2. Seed Initial Hostels / Properties (Skyline only)
   const initialPropertiesData = [
     {
       name: 'Grand Skyline Premier Hostel',
@@ -43,30 +43,6 @@ async function main() {
       status: PropertyStatus.ACTIVE,
       adminName: 'Rahul Sharma',
       adminEmail: 'rahul.sharma@skylinehostels.com',
-    },
-    {
-      name: 'Greenwood Heights Co-living & PG',
-      propertyType: PropertyType.PG,
-      address: 'Viman Nagar, Near Symbiosis Campus, Pune',
-      status: PropertyStatus.ACTIVE,
-      adminName: 'Sneha Patil',
-      adminEmail: 'sneha.patil@greenwoodpg.in',
-    },
-    {
-      name: 'Heritage Residency Boys Hostel',
-      propertyType: PropertyType.HOSTEL,
-      address: 'Koramangala 4th Block, 80 Feet Road, Bangalore',
-      status: PropertyStatus.INACTIVE,
-      adminName: 'Amit Verma',
-      adminEmail: 'amit.verma@heritageresidency.com',
-    },
-    {
-      name: 'Elite Scholars Executive Hostel',
-      propertyType: PropertyType.HOSTEL,
-      address: 'North Campus, GTB Nagar Metro Station, Delhi',
-      status: PropertyStatus.ACTIVE,
-      adminName: 'Priya Kulkarni',
-      adminEmail: 'priya.k@elitescholars.edu',
     },
   ];
 

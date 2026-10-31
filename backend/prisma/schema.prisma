@@ -24,30 +24,52 @@ enum PropertyStatus {
 }
 
 enum StudentStatus {
-  ACTIVE 
-  INACTIVE 
+  ACTIVE
+  INACTIVE
   CHECKED_OUT
 }
 
-enum InvoiceSatus {
-  UNPAID 
+enum InvoiceStatus {
+  UNPAID
   PARTIALLY_PAID
   PAID
   OVERDUE
   CANCELLED
 }
 
-enum FeeCategory{
-  RENT 
+enum FeeCategory {
+  RENT
   MESS
   ELECTRICITY
   MAINTENANCE
-  LAUNDRY 
-  DEPOSIT 
-  OTHER 
+  LAUNDRY
+  DEPOSIT
+  OTHER
 }
 
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
 
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum ComplaintCategory {
+  ROOM
+  PLUMBING
+  ELECTRICITY
+  CLEANING
+  MESS
+  WIFI
+  MAINTENANCE
+  OTHER
+}
 
 enum PropertyType {
   PG
@@ -55,17 +77,18 @@ enum PropertyType {
 }
 
 model User {
-  id           Int            @id @default(autoincrement())
-  name         String         @db.VarChar(255)
-  email        String         @unique @db.VarChar(255)
-  passwordHash String         @map("password_hash") @db.VarChar(255)
-  role         Role           @default(PROPERTY_ADMIN)
-  status       UserStatus     @default(ACTIVE)
-  tokenVersion Int            @default(0) @map("token_version")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(255)
+  email        String     @unique @db.VarChar(255)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
+  role         Role       @default(PROPERTY_ADMIN)
+  status       UserStatus @default(ACTIVE)
+  tokenVersion Int        @default(0) @map("token_version")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   propertyUsers PropertyUser[]
+  student       Student?
 
   @@map("users")
 }
@@ -79,8 +102,13 @@ model Property {
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  propertyUsers  PropertyUser[]
-  marketingPosts MarketingPost[]
+  propertyUsers     PropertyUser[]
+  marketingPosts    MarketingPost[]
+  students          Student[]
+  invoices          FeeInvoice[]
+  payments          Payment[]
+  leaveApplications LeaveApplication[]
+  complaints        Complaint[]
 
   @@map("properties")
 }
@@ -128,21 +156,120 @@ model MarketingPost {
   @@map("marketing_posts")
 }
 
-model Student{
-  id                  Int      @id @default(autoincrement())
-  studentCode         String   @unique @map("student_code") @db.VarChar(50) 
-  userId              Int      @unique @map("user_id")
-  propertyId          Int      @map("property_id")
-  phone               String   @db.VarChar(20)
-  guardianName        String   @map("guardian_name") @db.VarChar(255)
-  guardianPhone       String   @map("guardian_phone") @db.VarChar(20)
-  collegeOrCompany    String?  @map("college_or_company") @db.VarChar(255)
-  idProofNumber       String?  @map("id_proof_number") @db.VarChar(100)
-  roomNumber          String   @map("room_number") @db.VarChar(50)
-  bedNumber           String   @map("bed_number")  @db.VarChar(50)
-  
+model Student {
+  id               Int           @id @default(autoincrement())
+  studentCode      String        @unique @map("student_code") @db.VarChar(50)
+  userId           Int           @unique @map("user_id")
+  propertyId       Int           @map("property_id")
+  phone            String        @db.VarChar(20)
+  guardianName     String        @map("guardian_name") @db.VarChar(255)
+  guardianPhone    String        @map("guardian_phone") @db.VarChar(20)
+  collegeOrCompany String?       @map("college_or_company") @db.VarChar(255)
+  idProofNumber    String?       @map("id_proof_number") @db.VarChar(100)
+  building         String?       @db.VarChar(100)
+  floor            Int?          @default(1)
+  roomNumber       String        @map("room_number") @db.VarChar(50)
+  bedNumber        String        @map("bed_number") @db.VarChar(50)
+  monthlyRent      Decimal       @default(0.00) @map("monthly_rent") @db.Decimal(10, 2)
+  depositAmount    Decimal       @default(0.00) @map("deposit_amount") @db.Decimal(10, 2)
+  admissionDate    DateTime      @default(now()) @map("admission_date")
+  status           StudentStatus @default(ACTIVE)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  invoices          FeeInvoice[]
+  payments          Payment[]
+  leaveApplications LeaveApplication[]
+  complaints        Complaint[]
 
-
+  @@index([propertyId])
+  @@map("students")
 }
 
+model FeeInvoice {
+  id            Int           @id @default(autoincrement())
+  invoiceNumber String        @unique @map("invoice_number") @db.VarChar(100)
+  studentId     Int           @map("student_id")
+  propertyId    Int           @map("property_id")
+  category      FeeCategory   @default(RENT)
+  title         String        @db.VarChar(255)
+  amount        Decimal       @map("amount") @db.Decimal(10, 2)
+  paidAmount    Decimal       @default(0.00) @map("paid_amount") @db.Decimal(10, 2)
+  dueDate       DateTime      @map("due_date")
+  status        InvoiceStatus @default(UNPAID)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  student  Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([propertyId])
+  @@index([studentId])
+  @@map("fee_invoices")
+}
+
+model Payment {
+  id             Int        @id @default(autoincrement())
+  transactionRef String     @unique @map("transaction_ref") @db.VarChar(100)
+  invoiceId      Int        @map("invoice_id")
+  studentId      Int        @map("student_id")
+  propertyId     Int        @map("property_id")
+  amount         Decimal    @db.Decimal(10, 2)
+  paymentMode    String     @default("DEMO_UPI") @map("payment_mode") @db.VarChar(50)
+  isDemo         Boolean    @default(true) @map("is_demo")
+  paidAt         DateTime   @default(now()) @map("paid_at")
+
+  invoice  FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  student  Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  property Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([studentId])
+  @@map("payments")
+}
+
+model LeaveApplication {
+  id           Int         @id @default(autoincrement())
+  studentId    Int         @map("student_id")
+  propertyId   Int         @map("property_id")
+  startDate    DateTime    @map("start_date")
+  endDate      DateTime    @map("end_date")
+  totalDays    Int         @map("total_days")
+  reason       String      @db.Text
+  destination  String?     @db.VarChar(255)
+  status       LeaveStatus @default(PENDING)
+  adminRemarks String?     @map("admin_remarks") @db.Text
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([studentId])
+  @@map("leave_applications")
+}
+
+model Complaint {
+  id          Int               @id @default(autoincrement())
+  ticketId    String            @unique @map("ticket_id") @db.VarChar(50)
+  studentId   Int               @map("student_id")
+  propertyId  Int               @map("property_id")
+  category    ComplaintCategory @default(ROOM)
+  title       String            @db.VarChar(255)
+  description String            @db.Text
+  status      ComplaintStatus   @default(OPEN)
+  resolution  String?           @db.Text
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  student  Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([studentId])
+  @@map("complaints")
+}
