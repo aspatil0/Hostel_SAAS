@@ -150,21 +150,14 @@ export function StudentLoginPage() {
         {/* Switchers to other portals */}
         <div className="mt-6 space-y-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3 text-center dark:border-slate-800 dark:bg-slate-800/40">
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Need to access management controls?
+            Hostel Owner, Manager, or Warden 
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
             <Link
               to="/property-admin/login"
               className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
             >
-              <Building2 className="h-3.5 w-3.5" /> Property Admin <ArrowRight className="h-3 w-3" />
-            </Link>
-            <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
-            <Link
-              to="/admin/login"
-              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" /> Super Admin <ArrowRight className="h-3 w-3" />
+              <Building2 className="h-3.5 w-3.5" /> Switch to Property Admin Portal <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
         </div>

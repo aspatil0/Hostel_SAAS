@@ -37,6 +37,21 @@
   ],
   "rentRecords": [
     {
+      "id": "RENT-239774",
+      "studentId": "STU-102",
+      "studentName": "Resident",
+      "roomNumber": "101",
+      "month": "October 2026",
+      "amount": 12500,
+      "paidAmount": 12500,
+      "dueDate": "2026-10-30",
+      "paidDate": "2026-10-30",
+      "status": "paid",
+      "paymentMode": "UPI",
+      "transactionRef": "TXN-239765",
+      "propertyId": 7
+    },
+    {
       "id": "RENT-234710",
       "studentId": "STU-101",
       "studentName": "Resident",
@@ -131,6 +146,60 @@
           "bedId": "102-B",
           "bedName": "Bed B",
           "status": "vacant"
+        }
+      ]
+    },
+    {
+      "roomNumber": "101",
+      "floor": 1,
+      "wing": "East",
+      "type": "Double Sharing AC",
+      "price": 12500,
+      "propertyId": 7,
+      "beds": [
+        {
+          "bedId": "101-A",
+          "bedName": "Bed A",
+          "status": "vacant"
+        },
+        {
+          "bedId": "101-B",
+          "bedName": "Bed B",
+          "status": "occupied",
+          "student": {
+            "name": "adsada",
+            "phone": "dadsadad",
+            "college": "Verified Resident",
+            "checkInDate": "2026-10-30",
+            "rent": 12500
+          }
+        }
+      ]
+    },
+    {
+      "roomNumber": "102",
+      "floor": 1,
+      "wing": "East",
+      "type": "Double Sharing AC",
+      "price": 12500,
+      "propertyId": 7,
+      "beds": [
+        {
+          "bedId": "102-A",
+          "bedName": "Bed A",
+          "status": "vacant"
+        },
+        {
+          "bedId": "102-B",
+          "bedName": "Bed B",
+          "status": "occupied",
+          "student": {
+            "name": "adsada",
+            "phone": "dadasdadad",
+            "college": "Verified Resident",
+            "checkInDate": "2026-10-30",
+            "rent": 12500
+          }
         }
       ]
     }

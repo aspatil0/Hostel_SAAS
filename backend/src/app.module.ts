@@ -8,6 +8,7 @@ import { PropertiesModule } from './properties/properties.module.js';
 import { AdminsModule } from './admins/admins.module.js';
 import { MarketingModule } from './marketing/marketing.module.js';
 import { PropertyPortalModule } from './property-portal/property-portal.module.js';
+import { StudentModule } from './student/student.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PropertyPortalModule } from './property-portal/property-portal.module.j
     AdminsModule,
     MarketingModule,
     PropertyPortalModule,
+    StudentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

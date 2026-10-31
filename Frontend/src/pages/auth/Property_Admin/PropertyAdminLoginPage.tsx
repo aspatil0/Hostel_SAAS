@@ -124,14 +124,14 @@ export function PropertyAdminLoginPage() {
         {/* Switcher to Super Admin Portal */}
         <div className="mt-6 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3 text-center dark:border-slate-800 dark:bg-slate-800/40">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Platform Master / SaaS Administrator?
+            Are you a student resident staying at a hostel?
           </p>
           <Link
-            to="/admin/login"
-            className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+            to="/student/login"
+            className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400"
           >
             <ShieldCheck className="h-3.5 w-3.5" />
-            Switch to Super Admin Login Portal <ArrowRight className="h-3.5 w-3.5" />
+            Switch to Student Resident Portal <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </form>

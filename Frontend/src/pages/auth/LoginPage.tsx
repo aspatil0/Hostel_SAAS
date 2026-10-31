@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ShieldCheck, Building2, GraduationCap, ArrowRight } from "lucide-react";
+import { Building2, GraduationCap, ArrowRight, Lock } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
 
 export function LoginPage() {
@@ -67,34 +67,16 @@ export function LoginPage() {
           </div>
         </Link>
 
-        {/* 3. Super Admin Entrance Card */}
-        <Link
-          to="/admin/login"
-          className="group block rounded-2xl border-2 border-indigo-500/30 bg-indigo-50/40 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-600 hover:bg-indigo-50/80 hover:shadow-lg hover:shadow-indigo-500/10 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:hover:border-indigo-500/80"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/30">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600/10 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
-              Platform Owners
-            </span>
-          </div>
-
-          <div className="mt-4">
-            <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-700 dark:text-white dark:group-hover:text-indigo-400">
-              Super Admin Portal
-            </h3>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              For system platform administrators. Register hostels, generate manager portal credentials, and manage social marketing campaigns.
-            </p>
-          </div>
-
-          <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-            <span>Proceed to Super Admin Login</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </div>
-        </Link>
+        {/* 3. Discreet Super Admin Link in Footer */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
+          <Link
+            to="/admin/login"
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400 hover:text-indigo-600 transition-colors dark:text-slate-500 dark:hover:text-indigo-400"
+          >
+            <Lock className="h-3 w-3" />
+            Platform Master Access
+          </Link>
+        </div>
       </div>
     </AuthLayout>
   );
