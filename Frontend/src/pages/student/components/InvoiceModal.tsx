@@ -301,7 +301,7 @@ export function generateInvoicePdf(invoice: StudentFeeInvoice, profile: StudentP
   doc.setTextColor(255, 255, 255);
   doc.text('#', leftMargin + 4, thY + 5);
   doc.text('DESCRIPTION & SPECIFICATION', leftMargin + 14, thY + 5);
-  doc.text('CATEGORY', leftMargin + 96, thY + 5);
+  doc.text('CATEGORY', leftMargin + 98, thY + 5);
   doc.text('PERIOD', leftMargin + 128, thY + 5);
   doc.text('AMOUNT (INR)', rightMargin - 4, thY + 5, { align: 'right' });
 
@@ -340,7 +340,7 @@ export function generateInvoicePdf(invoice: StudentFeeInvoice, profile: StudentP
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.2);
     doc.setTextColor(37, 99, 235);
-    doc.text(`${item.category} FEE`, leftMargin + 96, rowY);
+    doc.text(`${item.category} FEE`, leftMargin + 98, rowY);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.8);
@@ -461,7 +461,7 @@ export function generateInvoicePdf(invoice: StudentFeeInvoice, profile: StudentP
 
   y += 39;
 
-  // 8. Verified Transactions Ledger (if payments exist)
+  // 8. Verified Transactions Ledger (Non-colliding, precisely calculated column widths)
   const payments = invoice.paymentHistory || [];
   if (payments.length > 0 || invoice.paidAmount > 0) {
     // Check if we need a page break before transaction records
@@ -476,58 +476,82 @@ export function generateInvoicePdf(invoice: StudentFeeInvoice, profile: StudentP
     doc.text('RECORDED TRANSACTION LEDGER', leftMargin, y);
     y += 2.8;
 
+    // Header Background
     doc.setFillColor(241, 245, 249);
     doc.rect(leftMargin, y, contentWidth, 5.5, 'F');
     doc.setDrawColor(226, 232, 240);
     doc.line(leftMargin, y + 5.5, rightMargin, y + 5.5);
 
+    // Header Columns:
+    // 1. REF: 18mm
+    // 2. TXN: 54mm
+    // 3. DATE: 96mm
+    // 4. METHOD: 120mm
+    // 5. STATUS: 144mm (pill centered at 152mm)
+    // 6. AMOUNT: 192mm (right-aligned)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139);
-    doc.text('PAYMENT REFERENCE', leftMargin + 3, y + 3.8);
-    doc.text('TRANSACTION ID', leftMargin + 50, y + 3.8);
-    doc.text('DATE', leftMargin + 100, y + 3.8);
-    doc.text('METHOD', leftMargin + 130, y + 3.8);
-    doc.text('STATUS', leftMargin + 154, y + 3.8);
-    doc.text('AMOUNT PAID', rightMargin - 4, y + 3.8, { align: 'right' });
+    doc.text('PAYMENT REF', leftMargin + 3, y + 3.8);
+    doc.text('TRANSACTION ID', 54, y + 3.8);
+    doc.text('DATE', 96, y + 3.8);
+    doc.text('METHOD', 120, y + 3.8);
+    doc.text('STATUS', 144, y + 3.8);
+    doc.text('AMOUNT PAID', rightMargin - 3, y + 3.8, { align: 'right' });
     y += 5.5;
 
     if (payments.length > 0) {
       payments.forEach((p) => {
-        const rowY = y + 4;
+        const rowY = y + 4.2;
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7.2);
         doc.setTextColor(23, 43, 69);
         doc.text(p.paymentReference || 'N/A', leftMargin + 3, rowY);
-        doc.text(p.transactionRef || 'N/A', leftMargin + 50, rowY);
-        doc.text(p.paymentDate || 'N/A', leftMargin + 100, rowY);
-        doc.text(p.paymentMode || 'UPI', leftMargin + 130, rowY);
+        doc.text(p.transactionRef || 'N/A', 54, rowY);
+        doc.text(p.paymentDate || 'N/A', 96, rowY);
+        doc.text(p.paymentMode || 'UPI', 120, rowY);
 
+        // Status Badge Pill (Centered around 152mm, ends at 160mm)
+        doc.setFillColor(236, 253, 245);
+        doc.setDrawColor(167, 243, 208);
+        doc.roundedRect(144, rowY - 3.2, 16, 4.4, 1.2, 1.2, 'FD');
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(6.5);
         doc.setTextColor(5, 150, 105);
-        doc.text(p.status || 'SUCCESS', leftMargin + 154, rowY);
+        doc.text(p.status || 'SUCCESS', 152, rowY, { align: 'center' });
 
+        // Amount (Right-aligned at 192mm, starts at ~175mm, leaving 15mm gap to status pill)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.2);
         doc.setTextColor(23, 43, 69);
-        doc.text(`INR ${p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, rightMargin - 4, rowY, { align: 'right' });
-        y += 5.5;
+        doc.text(`INR ${p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, rightMargin - 3, rowY, { align: 'right' });
+        y += 5.8;
       });
     } else {
-      const rowY = y + 4;
+      const rowY = y + 4.2;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.2);
       doc.setTextColor(23, 43, 69);
-      doc.text('PAY-DIRECT-RECORD', leftMargin + 3, rowY);
-      doc.text(`TXN-INV-${invNumber}`, leftMargin + 50, rowY);
-      doc.text(issueDate, leftMargin + 100, rowY);
-      doc.text('Online Portal', leftMargin + 130, rowY);
+      doc.text('PAY-DIRECT', leftMargin + 3, rowY);
+      doc.text(`TXN-INV-${invNumber}`, 54, rowY);
+      doc.text(issueDate, 96, rowY);
+      doc.text('Online UPI', 120, rowY);
 
+      // Status Badge Pill
+      doc.setFillColor(236, 253, 245);
+      doc.setDrawColor(167, 243, 208);
+      doc.roundedRect(144, rowY - 3.2, 16, 4.4, 1.2, 1.2, 'FD');
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
       doc.setTextColor(5, 150, 105);
-      doc.text('SUCCESS', leftMargin + 154, rowY);
+      doc.text('SUCCESS', 152, rowY, { align: 'center' });
 
+      // Amount
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.2);
       doc.setTextColor(23, 43, 69);
-      doc.text(`INR ${invoice.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, rightMargin - 4, rowY, { align: 'right' });
-      y += 5.5;
+      doc.text(`INR ${invoice.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, rightMargin - 3, rowY, { align: 'right' });
+      y += 5.8;
     }
   }
 
@@ -852,11 +876,11 @@ export function InvoiceModal({
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-[#0D1F36] text-white text-[10px] uppercase font-bold tracking-wider">
-                      <th className="py-3 px-4 w-12 text-center">#</th>
-                      <th className="py-3 px-4">Description & Specification</th>
-                      <th className="py-3 px-4">Fee Category</th>
-                      <th className="py-3 px-4">Billing Cycle</th>
-                      <th className="py-3 px-4 text-right">Amount (₹)</th>
+                      <th className="py-3 px-4 w-12 text-center whitespace-nowrap">#</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Description & Specification</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Fee Category</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Billing Cycle</th>
+                      <th className="py-3 px-4 text-right whitespace-nowrap">Amount (₹)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
@@ -872,21 +896,21 @@ export function InvoiceModal({
                         key={idx}
                         className={idx % 2 === 1 ? 'bg-slate-50/60 dark:bg-slate-800/30' : 'bg-white dark:bg-[#121824]'}
                       >
-                        <td className="py-3.5 px-4 text-center text-slate-400 font-mono font-medium">
+                        <td className="py-3.5 px-4 text-center text-slate-400 font-mono font-medium whitespace-nowrap">
                           {String(idx + 1).padStart(2, '0')}
                         </td>
                         <td className="py-3.5 px-4 font-bold text-[#172B45] dark:text-white">
                           {item.description}
                         </td>
-                        <td className="py-3.5 px-4">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
                           <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                             {item.category} Fee
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">
+                        <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                           {item.billingPeriod}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-extrabold text-[#172B45] dark:text-white text-sm">
+                        <td className="py-3.5 px-4 text-right font-extrabold text-[#172B45] dark:text-white text-sm whitespace-nowrap">
                           ₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
@@ -982,7 +1006,7 @@ export function InvoiceModal({
               </div>
             </div>
 
-            {/* 7. Verified Payment Transactions Table (if payments recorded) */}
+            {/* 7. Verified Payment Transactions Table (Non-colliding, whitespace-nowrap) */}
             {(payments.length > 0 || invoice.paidAmount > 0) && (
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <span className="text-xs font-bold uppercase tracking-wider text-[#172B45] dark:text-white flex items-center gap-1.5">
@@ -990,61 +1014,65 @@ export function InvoiceModal({
                 </span>
 
                 <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[600px]">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800/60 text-[10px] uppercase font-bold text-slate-500 border-b border-slate-200 dark:border-slate-800">
-                        <th className="py-2.5 px-3.5">Payment Reference</th>
-                        <th className="py-2.5 px-3.5">Transaction ID</th>
-                        <th className="py-2.5 px-3.5">Date</th>
-                        <th className="py-2.5 px-3.5">Method</th>
-                        <th className="py-2.5 px-3.5">Status</th>
-                        <th className="py-2.5 px-3.5 text-right">Amount Paid</th>
+                        <th className="py-2.5 px-3.5 whitespace-nowrap">Payment Ref</th>
+                        <th className="py-2.5 px-3.5 whitespace-nowrap">Transaction ID</th>
+                        <th className="py-2.5 px-3.5 whitespace-nowrap">Date</th>
+                        <th className="py-2.5 px-3.5 whitespace-nowrap">Method</th>
+                        <th className="py-2.5 px-3.5 whitespace-nowrap text-center">Status</th>
+                        <th className="py-2.5 px-3.5 whitespace-nowrap text-right">Amount Paid</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {payments.length > 0 ? (
                         payments.map((p) => (
                           <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                            <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                            <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                               {p.paymentReference}
                             </td>
-                            <td className="py-2.5 px-3.5 font-mono text-slate-600 dark:text-slate-400">
+                            <td className="py-2.5 px-3.5 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
                               {p.transactionRef}
                             </td>
-                            <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300">
+                            <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
                               {p.paymentDate}
                             </td>
-                            <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300">
+                            <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
                               {p.paymentMode}
                             </td>
-                            <td className="py-2.5 px-3.5">
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                                 {p.status}
                               </span>
                             </td>
-                            <td className="py-2.5 px-3.5 text-right font-extrabold text-[#172B45] dark:text-white">
+                            <td className="py-2.5 px-3.5 text-right font-extrabold text-[#172B45] dark:text-white whitespace-nowrap">
                               ₹{p.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                          <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400">
+                          <td className="py-2.5 px-3.5 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                             PAY-DIRECT
                           </td>
-                          <td className="py-2.5 px-3.5 font-mono text-slate-600 dark:text-slate-400">
+                          <td className="py-2.5 px-3.5 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap">
                             TXN-INV-{invNumber}
                           </td>
-                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300">{issueDate}</td>
-                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300">Online Demo UPI</td>
-                          <td className="py-2.5 px-3.5">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {issueDate}
+                          </td>
+                          <td className="py-2.5 px-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            Online UPI
+                          </td>
+                          <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
                               SUCCESS
                             </span>
                           </td>
-                          <td className="py-2.5 px-3.5 text-right font-extrabold text-[#172B45] dark:text-white">
+                          <td className="py-2.5 px-3.5 text-right font-extrabold text-[#172B45] dark:text-white whitespace-nowrap">
                             ₹{invoice.paidAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
                         </tr>
