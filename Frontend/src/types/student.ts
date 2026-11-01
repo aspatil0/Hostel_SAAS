@@ -94,14 +94,24 @@ export interface StudentProfile {
   hostelInfo: StudentHostelInfo;
 }
 
+export interface InvoiceLineItem {
+  id?: string;
+  srNo?: number;
+  description: string;
+  category: FeeCategory | string;
+  billingPeriod: string;
+  amount: number;
+}
+
 export interface PaymentReceipt {
   id: string;
   paymentReference: string;
   invoiceId: string;
+  invoiceNumber?: string;
   invoiceReference: string;
   amount: number;
   paymentDate: string;
-  paymentMode: 'UPI' | 'Card' | 'NetBanking' | 'Cash';
+  paymentMode: 'UPI' | 'Card' | 'NetBanking' | 'Cash' | string;
   transactionRef: string;
   status: 'SUCCESS' | 'FAILED' | 'PENDING';
   receiptUrl?: string;
@@ -110,16 +120,33 @@ export interface PaymentReceipt {
 
 export interface StudentFeeInvoice {
   id: string;
+  invoiceNumber?: string;
   invoiceReference: string;
   feeCategory: FeeCategory;
   billingPeriod: string;
+  title?: string;
   dueDate: string;
+  issueDate?: string;
+  createdAt?: string;
+  subtotal?: number;
+  additionalCharges?: number;
+  discounts?: number;
   totalAmount: number;
   paidAmount: number;
   remainingBalance: number;
   status: InvoiceStatus;
   allowPayment: boolean;
+  items?: InvoiceLineItem[];
   paymentHistory?: PaymentReceipt[];
+}
+
+export function getInvoiceNumber(
+  invoice?: { invoiceNumber?: string; invoiceReference?: string; id?: string | number } | null
+): string {
+  if (!invoice) return 'INV-UNKNOWN';
+  if (invoice.invoiceNumber && invoice.invoiceNumber.trim()) return invoice.invoiceNumber.trim();
+  if (invoice.invoiceReference && invoice.invoiceReference.trim()) return invoice.invoiceReference.trim();
+  return `INV-${invoice.id || 'N/A'}`;
 }
 
 export interface DemoPaymentRequest {

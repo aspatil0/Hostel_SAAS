@@ -64,7 +64,7 @@ export function DemoPaymentModal({
     try {
       const response = await studentPortalService.processDemoPayment({
         invoiceId: invoice.id,
-        invoiceReference: invoice.invoiceReference,
+        invoiceReference: invoice.invoiceNumber || invoice.invoiceReference,
         amount: payableAmount,
         paymentMethod,
         notes: `Demo online fee payment via Student Portal (${paymentMethod})`,
@@ -145,9 +145,9 @@ export function DemoPaymentModal({
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Invoice Reference:</span>
+              <span className="text-slate-400">Invoice Number:</span>
               <span className="font-semibold text-slate-900 dark:text-white">
-                {successResult.invoice.invoiceReference}
+                {successResult.invoice.invoiceNumber || successResult.invoice.invoiceReference}
               </span>
             </div>
 
@@ -222,7 +222,7 @@ export function DemoPaymentModal({
               </span>
               <div className="flex items-center justify-between">
                 <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {invoice.invoiceReference}
+                  {invoice.invoiceNumber || invoice.invoiceReference}
                 </span>
                 <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
                   {invoice.feeCategory}

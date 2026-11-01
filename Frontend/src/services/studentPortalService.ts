@@ -80,10 +80,12 @@ const DEFAULT_PROFILE: StudentProfile = {
 const DEFAULT_INVOICES: StudentFeeInvoice[] = [
   {
     id: 'INV-2026-11-01',
-    invoiceReference: 'INV-NOV-2026',
+    invoiceNumber: 'INV-2026-11-01',
+    invoiceReference: 'INV-2026-11-01',
     feeCategory: 'RENT',
     billingPeriod: 'November 2026',
     dueDate: '2026-11-05',
+    issueDate: '2026-10-25',
     totalAmount: 12500,
     paidAmount: 0,
     remainingBalance: 12500,
@@ -92,10 +94,12 @@ const DEFAULT_INVOICES: StudentFeeInvoice[] = [
   },
   {
     id: 'INV-2026-11-02',
-    invoiceReference: 'INV-MESS-NOV',
+    invoiceNumber: 'INV-2026-11-02',
+    invoiceReference: 'INV-2026-11-02',
     feeCategory: 'MESS',
     billingPeriod: 'November 2026',
     dueDate: '2026-11-07',
+    issueDate: '2026-10-25',
     totalAmount: 4500,
     paidAmount: 0,
     remainingBalance: 4500,
@@ -104,10 +108,12 @@ const DEFAULT_INVOICES: StudentFeeInvoice[] = [
   },
   {
     id: 'INV-2026-10-01',
-    invoiceReference: 'INV-OCT-2026',
+    invoiceNumber: 'INV-2026-10-01',
+    invoiceReference: 'INV-2026-10-01',
     feeCategory: 'RENT',
     billingPeriod: 'October 2026',
     dueDate: '2026-10-05',
+    issueDate: '2026-09-25',
     totalAmount: 12500,
     paidAmount: 12500,
     remainingBalance: 0,
@@ -118,7 +124,8 @@ const DEFAULT_INVOICES: StudentFeeInvoice[] = [
         id: 'RCPT-1029',
         paymentReference: 'PAY-OCT-8821',
         invoiceId: 'INV-2026-10-01',
-        invoiceReference: 'INV-OCT-2026',
+        invoiceNumber: 'INV-2026-10-01',
+        invoiceReference: 'INV-2026-10-01',
         amount: 12500,
         paymentDate: '2026-10-03',
         paymentMode: 'UPI',
@@ -129,10 +136,12 @@ const DEFAULT_INVOICES: StudentFeeInvoice[] = [
   },
   {
     id: 'INV-2026-09-01',
-    invoiceReference: 'INV-SEP-2026',
+    invoiceNumber: 'INV-2026-09-01',
+    invoiceReference: 'INV-2026-09-01',
     feeCategory: 'RENT',
     billingPeriod: 'September 2026',
     dueDate: '2026-09-05',
+    issueDate: '2026-08-25',
     totalAmount: 12500,
     paidAmount: 12500,
     remainingBalance: 0,
@@ -141,10 +150,12 @@ const DEFAULT_INVOICES: StudentFeeInvoice[] = [
   },
   {
     id: 'INV-2026-07-00',
-    invoiceReference: 'INV-DEP-2026',
+    invoiceNumber: 'INV-2026-07-00',
+    invoiceReference: 'INV-2026-07-00',
     feeCategory: 'DEPOSIT',
     billingPeriod: 'One-Time Security Deposit',
     dueDate: '2026-07-15',
+    issueDate: '2026-07-01',
     totalAmount: 25000,
     paidAmount: 25000,
     remainingBalance: 0,
@@ -373,12 +384,24 @@ export const studentPortalService = {
     try {
       const query = statusFilter && statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
       const live = await apiClient.get<StudentFeeInvoice[]>(`/student/fees${query}`);
-      if (Array.isArray(live)) return live;
+      if (Array.isArray(live)) {
+        return live.map((inv) => ({
+          ...inv,
+          invoiceNumber: inv.invoiceNumber || inv.invoiceReference,
+          invoiceReference: inv.invoiceNumber || inv.invoiceReference,
+        }));
+      }
     } catch {
       // Fallback
     }
 
-    const invoices = loadMock<StudentFeeInvoice[]>(STORAGE_KEYS.INVOICES, DEFAULT_INVOICES);
+    const rawInvoices = loadMock<StudentFeeInvoice[]>(STORAGE_KEYS.INVOICES, DEFAULT_INVOICES);
+    const invoices = rawInvoices.map((inv) => ({
+      ...inv,
+      invoiceNumber: inv.invoiceNumber || inv.invoiceReference,
+      invoiceReference: inv.invoiceNumber || inv.invoiceReference,
+    }));
+
     if (!statusFilter || statusFilter === 'ALL') {
       return invoices;
     }
@@ -391,11 +414,22 @@ export const studentPortalService = {
   async getPaymentHistory(): Promise<PaymentReceipt[]> {
     try {
       const live = await apiClient.get<PaymentReceipt[]>('/student/fees/payments');
-      if (Array.isArray(live)) return live;
+      if (Array.isArray(live)) {
+        return live.map((p) => ({
+          ...p,
+          invoiceNumber: p.invoiceNumber || p.invoiceReference,
+          invoiceReference: p.invoiceNumber || p.invoiceReference,
+        }));
+      }
     } catch {
       // Fallback
     }
-    return loadMock<PaymentReceipt[]>(STORAGE_KEYS.PAYMENTS, DEFAULT_PAYMENTS);
+    const rawPayments = loadMock<PaymentReceipt[]>(STORAGE_KEYS.PAYMENTS, DEFAULT_PAYMENTS);
+    return rawPayments.map((p) => ({
+      ...p,
+      invoiceNumber: p.invoiceNumber || p.invoiceReference,
+      invoiceReference: p.invoiceNumber || p.invoiceReference,
+    }));
   },
 
   /**
@@ -429,11 +463,13 @@ export const studentPortalService = {
     const txnRef = `UPI-DEMO-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
     const today = new Date().toISOString().split('T')[0];
 
+    const invNumber = targetInvoice.invoiceNumber || targetInvoice.invoiceReference;
     const newReceipt: PaymentReceipt = {
       id: `RCPT-${Date.now().toString().slice(-6)}`,
       paymentReference: paymentRef,
       invoiceId: targetInvoice.id,
-      invoiceReference: targetInvoice.invoiceReference,
+      invoiceNumber: invNumber,
+      invoiceReference: invNumber,
       amount: payload.amount,
       paymentDate: today,
       paymentMode: payload.paymentMethod,
@@ -444,6 +480,8 @@ export const studentPortalService = {
 
     const updatedInvoice: StudentFeeInvoice = {
       ...targetInvoice,
+      invoiceNumber: invNumber,
+      invoiceReference: invNumber,
       paidAmount: newPaidAmount,
       remainingBalance: newRemaining,
       status: newStatus,

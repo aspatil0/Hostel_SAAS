@@ -26,6 +26,7 @@ import type {
   InvoiceStatus,
   DemoPaymentResponse,
 } from '@/types/student';
+import { getInvoiceNumber } from '@/types/student';
 import { DemoPaymentModal } from './components/DemoPaymentModal';
 import { InvoiceModal } from './components/InvoiceModal';
 
@@ -94,15 +95,21 @@ export function StudentFeesPage() {
   };
 
   const handleDownloadReceipt = (receipt: PaymentReceipt) => {
+    const invNumber = receipt.invoiceNumber || receipt.invoiceReference;
     // Find matching invoice or construct temporary view
     const matched = invoices.find((i) => i.id === receipt.invoiceId);
     if (matched) {
-      setSelectedInvoiceForModal(matched);
+      setSelectedInvoiceForModal({
+        ...matched,
+        invoiceNumber: invNumber,
+        invoiceReference: invNumber,
+      });
       setIsInvoiceModalOpen(true);
     } else if (invoices[0]) {
       setSelectedInvoiceForModal({
         ...invoices[0],
-        invoiceReference: receipt.invoiceReference,
+        invoiceNumber: invNumber,
+        invoiceReference: invNumber,
         paidAmount: receipt.amount,
         remainingBalance: 0,
         status: 'PAID',
@@ -288,7 +295,7 @@ export function StudentFeesPage() {
                     <div className="space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
-                          {invoice.invoiceReference}
+                          {getInvoiceNumber(invoice)}
                         </span>
                         <StatusBadge status={invoice.status.toLowerCase()} />
                         <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
@@ -395,7 +402,7 @@ export function StudentFeesPage() {
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        Invoice: <span className="font-semibold">{p.invoiceReference}</span> • Paid on {p.paymentDate} via {p.paymentMode}
+                        Invoice: <span className="font-semibold">{p.invoiceNumber || p.invoiceReference}</span> • Paid on {p.paymentDate} via {p.paymentMode}
                       </p>
                       <p className="text-[11px] font-mono text-slate-400">
                         Transaction Ref: {p.transactionRef}
