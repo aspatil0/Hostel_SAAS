@@ -16,9 +16,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
-  logout(@CurrentUser('id') userId: number) {
-    return this.authService.logout(userId);
+  logout() {
+    return { success: true, message: 'Logged out successfully' };
   }
 
   @Get('me')

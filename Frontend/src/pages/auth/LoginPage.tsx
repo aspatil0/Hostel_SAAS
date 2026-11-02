@@ -1,126 +1,83 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { Link } from "react-router-dom";
+import { Building2, GraduationCap, ArrowRight, Lock } from "lucide-react";
 import { AuthLayout } from "./AuthLayout";
 
 export function LoginPage() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const destination = location.state?.from?.pathname || "/";
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError("");
-
-    if (!email.trim() || !password) {
-      setError("Please fill in all fields");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await login({ email: email.trim(), password });
-      navigate(destination, { replace: true });
-    } catch {
-      setError("Invalid email or password");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to your Hostel OS account to continue"
+      title="HostelOS Sign-In Gateway"
+      subtitle="Please select your dedicated portal to continue."
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Error Alert */}
-        {error && (
-          <div className="flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-700">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        {/* Email Field */}
-        <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-700">
-            Email address
-          </label>
-          <div className="relative">
-            <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@hostelos.com"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-          </div>
-        </div>
-
-        {/* Password Field */}
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-              Password
-            </label>
-            <Link
-              to="/forgot-password"
-              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition-all hover:bg-indigo-700 disabled:opacity-50"
+      <div className="space-y-4">
+        {/* 1. Student Resident Portal Entrance */}
+        <Link
+          to="/student/login"
+          className="group block rounded-2xl border-2 border-blue-500/30 bg-blue-50/40 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-500 hover:bg-blue-50/80 hover:shadow-lg hover:shadow-blue-500/10 dark:border-blue-900/40 dark:bg-blue-950/20 dark:hover:border-blue-500/80"
         >
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isLoading ? "Signing in..." : "Sign in"}
-        </button>
+          <div className="flex items-start justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/30">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
+              Students & Residents
+            </span>
+          </div>
 
-        {/* Register Link */}
-        <p className="text-center text-xs text-slate-500">
-          Don't have an account?{" "}
+          <div className="mt-4">
+            <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-700 dark:text-white dark:group-hover:text-blue-400">
+              Student Resident Portal
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              View your room allotment, check fee invoices, pay dues via demo payment, request leave passes, and submit maintenance tickets.
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+            <span>Proceed to Student Login</span>
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </div>
+        </Link>
+
+        {/* 2. Property Admin Entrance Card */}
+        <Link
+          to="/property-admin/login"
+          className="group block rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/40 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500 hover:bg-emerald-50/80 hover:shadow-lg hover:shadow-emerald-500/10 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:hover:border-emerald-500/80"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/30">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+              Hostel / PG Managers
+            </span>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-base font-bold text-slate-900 group-hover:text-emerald-700 dark:text-white dark:group-hover:text-emerald-400">
+              Property Admin Portal
+            </h3>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              For hostel managers and wardens. Manage student admissions, live room/bed occupancy, monthly rent dues, and hostel profiles.
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+            <span>Proceed to Property Login</span>
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </div>
+        </Link>
+
+        {/* 3. Discreet Super Admin Link in Footer */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 text-center">
           <Link
-            to="/register"
-            className="font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
+            to="/admin/login"
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400 hover:text-indigo-600 transition-colors dark:text-slate-500 dark:hover:text-indigo-400"
           >
-            Create account
+            <Lock className="h-3 w-3" />
+            Platform Master Access
           </Link>
-        </p>
-      </form>
+        </div>
+      </div>
     </AuthLayout>
   );
 }
